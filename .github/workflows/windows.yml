@@ -1,0 +1,50 @@
+name: Windows client
+on:
+  push:
+    branches: [main]
+    paths: ['apps/windows/**', '.github/workflows/windows.yml', 'LICENSE', 'NOTICE', 'THIRD_PARTY_NOTICES.md']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: apps/windows
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/windows/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run dist
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: Launch packaged Windows client and verify storage bridge
+        shell: pwsh
+        run: |
+          $result = Join-Path $env:TEMP 'topmeeting-smoke-result.txt'
+          Remove-Item $result -ErrorAction SilentlyContinue
+          $process = Start-Process -FilePath '.\release\win-unpacked\TopMeeting.exe' -ArgumentList '--smoke-test' -PassThru
+          if (-not $process.WaitForExit(60000)) { $process.Kill(); throw 'Packaged application timed out' }
+          if ($process.ExitCode -ne 0) { throw "Application exited with $($process.ExitCode)" }
+          if (-not (Test-Path $result)) { throw 'No smoke-test receipt' }
+          if ((Get-Content $result -Raw) -ne 'PASS') { throw 'Smoke test failed' }
+      - name: Hash release assets
+        shell: pwsh
+        run: |
+          Get-ChildItem release -File | Where-Object { $_.Extension -in '.exe','.zip' } | ForEach-Object { $hash = Get-FileHash $_.FullName -Algorithm SHA256; "$($hash.Hash.ToLower())  $($_.Name)" } | Set-Content release/SHA256SUMS.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: TopMeeting-Windows-x64
+          path: |
+            apps/windows/release/*.exe
+            apps/windows/release/*.zip
+            apps/windows/release/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 30

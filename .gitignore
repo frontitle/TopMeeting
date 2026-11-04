@@ -1,0 +1,33 @@
+.build/
+dist/
+.DS_Store
+
+.voice-venv/
+.voice-runtime/
+voice_engine/models/
+tests_audio/
+__pycache__/
+
+.feishu-runtime/
+
+# Private diagnostics and user artifacts are not part of the source release.
+reports/
+.env
+.env.*
+!.env.example
+*.caf
+*.wav
+*.m4a
+*.mp3
+*.onnx
+*.log
+node_modules/
+coverage/
+# Exported local application databases and biometric records
+meetings.json
+voice-profiles.json
+people.json
+recognition-terms.json
+
+apps/windows/release/
+*.webm

@@ -1,0 +1,2 @@
+f86cd6c509f331f0e20b07bd48d1b2eb7de54202643401c4e84695ac861a0e5a  voice_engine/models/embedding.onnx
+220ad67ca923bef2fa91f2390c786097bf305bceb5e261d4af67b38e938e1079  voice_engine/models/sherpa-onnx-pyannote-segmentation-3-0/model.onnx

@@ -1,0 +1,198 @@
+AI 纪要暂不可用	AI notes unavailable
+AI 连接尚未验证	AI connection not verified
+Agent 路由	Agent route
+Gateway 令牌	Gateway token
+Gateway 地址	Gateway URL
+TopMeeting 实时聆听	TopMeeting Live Captions
+上次完整纪要仍然保留，请重试生成最新总结。	Your previous notes are preserved. Retry to generate updated notes.
+专注交流。让会议助手整理脉络、留住决策。	Focus on the conversation. Capture the ideas and decisions.
+仅在本机保存声纹与修订历史；低置信度保持匿名。	Voice profiles and revisions stay on this device. Uncertain voices remain unnamed.
+会中每分钟同步，会后自动归档	Sync every minute and archive after the meeting
+会后完整总结	Final meeting summary
+会后生成核心信息画板	Create a board after the meeting
+会后附上原始录音文件	Attach the original recording
+会议 AI	Meeting AI
+会议主题	Meeting title
+会议助手	Meeting assistant
+会议实录	Transcript
+会议操作	Meeting actions
+会议状态	Meeting status
+会议纪要	Meeting notes
+会议记录	Meetings
+会议说话人	Meeting speakers
+你	You
+你的会议工作空间	Your meeting workspace
+保存修订	Save changes
+保存姓名并学习	Save name and voice profile
+保存最后一句…	Saving final words…
+保存纠正	Save correction
+保存连接配置	Save connection
+保留原始识别记录	Preserve original recognition
+修改文字与说话人	Edit text and speaker
+修改本段姓名，已保存的人员可再次选择	Name this paragraph. Saved people remain available.
+关联已创建的文档	Link existing document
+准备录音…	Preparing…
+分析现有录音	Analyze existing recording
+删除会议	Delete meeting
+删除这段发言	Delete this paragraph
+刷新麦克风列表	Refresh microphones
+加入常用术语，用于后续会议	Remember this term for future meetings
+原文已更新，请重新选择。	The text changed. Please select it again.
+双击打开会议；拖动调整位置	Double-click to open meeting; drag to move
+发送给会议 AI	Send to meeting assistant
+取消	Cancel
+可从左下角设置检查连接，再使用下方按钮更新纪要。	Check the connection in Settings, then update your notes below.
+同步本场	Sync meeting
+后续将自动应用修改后的名称	The updated name will be used automatically
+后续将自动应用修改后的名称；选择已有人员会合并身份	The updated name applies automatically. Selecting a saved person merges identities.
+在设置的扩展中连接总结模型。录音和实录仍可正常使用，已有纪要会保留。	Connect a model in Settings → Extensions. Recording and transcription remain available, and existing notes are preserved.
+填写姓名，建立或更新声纹	Name this speaker and update their voice profile
+多人会议收音	Meeting audio
+多人重叠发言 · 转写可能不完整	Overlapping speech · transcript may be incomplete
+好	OK
+姓名或称呼	Name
+姓名最多 60 个字	Names can contain up to 60 characters
+完成	Done
+完整记录每一段发言 · 选中词语即可纠正	Complete paragraphs · select words to correct
+实时收音波形	Live audio waveform
+导出会议	Export meeting
+工作空间	Workspace
+已人工修订	Manually corrected
+已创建文档的飞书链接	Existing Feishu document URL
+已在飞书完成，继续后续步骤	Already completed in Feishu; continue
+已暂停	Paused
+开始录音	Start recording
+当前开发版本	Development build
+录音中	Recording
+录音已保存。配置 OpenClaw 后，即可生成整场总结。	Recording saved. Connect a model to generate the final summary.
+总结尚未完成	Summary incomplete
+总结等待连接	Summary awaiting connection
+恢复会议	Restore meeting
+我已授权，完成连接	Authorization complete; connect
+我已核对，允许重试	I checked; allow retry
+打开文档	Open document
+打开飞书授权页面	Open Feishu authorization
+按需更新 · 会后自动总结	Update on demand · summarize when finished
+提问 · 纠错 · 补充语境	Ask · correct · add context
+搜索会议、纪要或说话人	Search meetings…
+搜索或添加新的说话人	Search or add a speaker
+撤销上次修改	Undo last change
+撤销上次标记或合并	Undo last speaker change
+收音已暂停	Audio paused
+文字标记 · 尚未关联声音	Text label · no linked voice profile
+新建会议	New meeting
+暂停录音	Pause recording
+更多	More
+更新纪要	Update notes
+最近删除	Recently deleted
+最近删除中没有会议	No deleted meetings
+本句收句后可纠正	Correct after this paragraph is finalized
+本机转写	On-device transcription
+查看与管理本场说话人	View and manage meeting speakers
+查看原始录音	View original recording
+标记 / 合并	Name / merge
+标记或合并说话人	Name or merge speakers
+核对后允许重试…	Verify and allow retry…
+检查连接	Check connection
+正在回复	Responding
+正在回放分析已有录音…	Analyzing saved audio…
+正在应用姓名…	Applying name…
+正在思考…	Thinking…
+正在收尾	Finishing
+正在整理会议脉络	Organizing discussion
+正在梳理整场讨论…	Summarizing the discussion…
+正在生成整场总结	Generating final summary
+正在聆听	Listening
+正在识别	Transcribing
+正常发言约几秒后，匿名说话人会自动出现在这里。	Speakers appear automatically after a few seconds of clear speech.
+正确写法	Correct text
+每一场讨论，都值得被听懂	Every conversation deserves to be understood
+没有匹配的会议	No matching meetings
+测试连接	Test connection
+添加	Add
+添加会议文字	Add transcript text
+清空姓名	Clear name
+点击继续，接着记录会议	Resume to continue this meeting
+生成完整总结	Generate final summary
+登录飞书	Sign in to Feishu
+确认上次操作未完成？	Was the previous operation incomplete?
+确认同一人并合并	Confirm same person and merge
+等待会议中的声音	Waiting for voices
+等待声音…	Waiting for audio…
+等待第一句发言	Waiting for the first paragraph
+等待说话人识别就绪…	Waiting for speaker recognition…
+粘贴已有转写，或补充没有被录到的发言。	Paste an existing transcript or add missed speech.
+纠正并记住	Correct and remember
+纠正所选词语…	Correct selected words…
+纠正文字或标记说话人	Correct text or name the speaker
+纠正词语	Correct words
+纠正这段发言	Edit paragraph
+结束并总结	Finish and summarize
+结构化纪要	Structured notes
+继续录音	Resume recording
+自动发现声音，标记姓名后建立声纹	Discover voices automatically; name speakers to build profiles
+补充会议背景、纠正理解，或问问刚才讨论了什么。	Add context, correct an interpretation, or ask about the discussion.
+补充语境，或向会议助手提问…	Add context or ask the meeting assistant…
+让每一次讨论，都有清晰的结论	Turn discussion into clear outcomes
+设置	Settings
+识别增益	Recognition gain
+试听	Listen
+说话人	Speakers
+说话人 1	Speaker 1
+说话人姓名	Speaker name
+跟随实录	Follow transcript
+跟随系统默认输入	Use system input
+身份操作	Identity action
+输入人名	Enter a name
+返回会议资料库	Back to meetings
+远程 OpenClaw	Remote OpenClaw
+选词纠错时会暂停跟随	Following pauses while you correct text
+重试回复	Retry reply
+飞书会议文档	Feishu meeting document
+飞书授权二维码	Feishu authorization QR code
+飞书文档	Feishu documents
+麦克风	Microphone
+语言	Languages
+界面语言	Interface language
+简体中文	Simplified Chinese
+会议识别语言	Transcription language
+纪要语言	Summary language
+识别语言在下次录音生效，首次使用可能下载本机模型。语言选择不改变原始发言。	The selected language applies to the next recording. First use may download an on-device model. Original speech is preserved.
+通用	General
+扩展	Extensions
+总结与会议助手	Summaries and assistant
+模型扩展	Model extension
+服务地址	Service URL
+模型名称	Model name
+连接你已有的远程 OpenClaw，使用配置好的账户与模型。	Connect your remote OpenClaw with its existing account and model.
+支持提供 Chat Completions 与 SSE 的兼容服务。费用与额度由所选服务商决定，不共享 OpenClaw 的订阅额度。	Supports compatible Chat Completions and SSE services. Billing and quotas belong to the selected provider, separate from OpenClaw.
+凭据分别存入钥匙串，不随会议导出。	Credentials are stored separately in Keychain and excluded from exports.
+扩展能力	Extension capabilities
+当前可用：OpenClaw、兼容模型 API、飞书文档。	Available: OpenClaw, compatible model APIs and Feishu documents.
+钉钉、Slack 和其他连接器将通过独立扩展接入，目前尚未实现。	DingTalk, Slack and other connectors are planned as separate extensions; not implemented yet.
+全部会议	All meetings
+已总结	Summarized
+待总结	Awaiting summary
+今天	Today
+近 7 天	Last 7 days
+更早	Earlier
+识别说话人…	Identifying speaker…
+说话人待确认	Speaker unconfirmed
+不需要会前录音。参会者正常发言后会自动出现；同一人被拆成多个身份时，将其合并即可纠正本场记录并完善声纹。重叠与低质量片段不参与学习，身份不确定时保留未标记，不按识别窗口新增人员。	No voice enrollment is needed. Speakers appear during the meeting. Merge duplicate identities to improve matching. Overlapping and uncertain audio is excluded from profile learning.
+使用会议中已经采集的可靠单人样本学习，不需要重新录音。手工合并会保留不同收音条件下的样本；明显异常的样本会隔离，不会污染已有声纹。	Learn from reliable solo speech already recorded in this meeting. Merging retains different recording conditions while isolating outliers.
+原始识别内容会保留，后续纪要使用修订版本。仅修改本段说话人。	Original recognition is retained. Future notes use the corrected text. This edits only this paragraph's speaker.
+同步实录和结构化纪要；完整总结生成后，再将核心信息绘成飞书画板。每次更新追加到本场文档，保留飞书中的人工编辑。仅使用用户身份，授权范围为文档和云盘；声纹保留本机。	Sync transcripts and notes, then add a final-summary board. Updates append without overwriting cloud edits. Uses your document and drive permissions; voice profiles stay local.
+基础增益默认 3×，轻声会自动补偿至最高 6×，近处声音按峰值限制增益。只增强送入识别器的声音，原始录音不变。录音开始前可调整。多人会议请使用能覆盖全场的麦克风，并在控制中心选择标准或宽谱，避免语音突显压低远处人声。	Default gain is 3×, with quiet-speech compensation up to 6× and peak limiting. Original audio is unchanged. Use a room microphone and Standard or Wide Spectrum mode for group meetings.
+支持会中自动发现说话人、快速标记与合并\n支持飞书文档归档与会后总结	Discover, name and merge speakers during meetings.\nArchive to Feishu with a final summary.
+本场单人发言约 %.1f 秒	About %.1f seconds of solo speech
+点击更新，整理议题、决策与行动项。\n结束会议后，自动生成整场总结。	Update topics, decisions and actions on demand.\nGenerate the final summary when the meeting ends.
+识别中的文字显示在系统悬浮窗，收句后进入实录。\n正常开会即可自动区分声音，点击说话人标记姓名。	Live captions appear in the floating panel. Final paragraphs enter the transcript.\nClick a speaker to assign a name.
+请先检查飞书云端。若已创建文档，请关联该文档；若内容、画板或录音已写入，请选择已完成，避免重复写入。	Check Feishu first. Link an existing document or confirm completed content, board or audio uploads to avoid duplicates.
+部分旧实录缺少词级时间戳：可分析录音、试听并标记人员，旧句子不会被强行归属。	Some older transcripts lack word timestamps. You can analyze audio and name voices; old text will not be forcibly assigned.
+
+飞书尚未连接	Feishu not connected
+飞书用户身份已连接	Feishu account connected
+需要登录飞书用户身份（不会使用机器人身份代写）	Sign in with your Feishu user account
+请打开授权链接，完成后点击“我已授权”	Open the authorization link, then click “I have authorized”
+尚未确认登录成功，请重新检查连接	Sign-in is not confirmed. Check the connection again.
+连接配置已保存，令牌存放于系统钥匙串。	Connection saved. Credentials are stored in Keychain.
