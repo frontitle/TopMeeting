@@ -4,6 +4,10 @@
 
 A native macOS meeting assistant with local recordings, live transcription, speaker identification, editable transcripts and structured summaries. Original project code is licensed under Apache-2.0. Current development version: **0.11.0**.
 
+## Windows preview
+
+[Download the Windows x64 installer or ZIP](https://github.com/frontitle/TopMeeting/releases/tag/windows-v0.12.0-preview.1). This preview supports recording, playback, editable transcripts and model summaries. Transcription requires a separately configured service; voiceprints, live overlay and Feishu are not ported yet. See [Windows scope](apps/windows/README.md).
+
 ## Features
 
 - Chinese and English primary UI; selectable supported transcription language and independent summary language.

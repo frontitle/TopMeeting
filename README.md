@@ -4,6 +4,10 @@
 
 面向多人会议的原生 macOS 会议助手。会议录音、声纹和实录保存在本机；通过可配置的模型服务生成结构化纪要。当前开发版本 **0.11.0**，项目原创代码采用 **Apache-2.0**。
 
+## Windows 预览版下载
+
+[Windows x64 安装包与 ZIP](https://github.com/frontitle/TopMeeting/releases/tag/windows-v0.12.0-preview.1)。此预览版可录音、播放、编辑实录和调用模型总结；转写需要独立配置服务，声纹、实时浮窗与飞书尚未移植。详见 [Windows 能力说明](apps/windows/README.md)。
+
 ## 当前能力
 
 - 中英文主要界面、系统支持的会议识别语言选择，以及独立的中英文总结语言设置。

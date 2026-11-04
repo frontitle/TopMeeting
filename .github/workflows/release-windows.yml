@@ -1,0 +1,49 @@
+name: Publish Windows preview draft
+on:
+  workflow_dispatch:
+    inputs:
+      build_run_id:
+        description: Successful Windows client build run ID
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Validate build provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_ID: ${{ inputs.build_run_id }}
+        run: |
+          [[ "$RUN_ID" =~ ^[0-9]+$ ]]
+          gh api "repos/$GH_REPO/actions/runs/$RUN_ID" > /tmp/build.json
+          python3 - <<'PY'
+          import json,os
+          run=json.load(open('/tmp/build.json'))
+          assert run['name']=='Windows client' and run['conclusion']=='success'
+          assert run['head_branch']=='main' and run['event'] in ['push','workflow_dispatch']
+          assert run['head_repository']['full_name']==os.environ['GH_REPO']
+          with open(os.environ['GITHUB_ENV'],'a') as out: out.write('BUILD_SHA='+run['head_sha']+'\n')
+          PY
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: TopMeeting-Windows-x64
+          path: assets
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.build_run_id }}
+      - name: Verify and create draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          cd assets
+          sha256sum --check SHA256SUMS.txt
+          cd ..
+          gh release create windows-v0.12.0-preview.1 assets/*.exe assets/*.zip assets/SHA256SUMS.txt assets/preview.png --draft --prerelease --target "$BUILD_SHA" --title "TopMeeting Windows 0.12.0 Preview 1" --notes-file docs/WINDOWS-PREVIEW-RELEASE.md
