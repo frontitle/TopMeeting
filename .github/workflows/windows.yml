@@ -2,7 +2,7 @@ name: Windows client
 on:
   push:
     branches: [main]
-    paths: ['apps/windows/**', '.github/workflows/windows.yml', 'voice_engine/**', 'LICENSE', 'NOTICE', 'THIRD_PARTY_NOTICES.md']
+    paths: ['apps/windows/**', 'packages/documents/document-services.cjs', '.github/workflows/windows.yml', 'voice_engine/**', 'LICENSE', 'NOTICE', 'THIRD_PARTY_NOTICES.md']
   workflow_dispatch:
 permissions:
   contents: read
@@ -57,7 +57,6 @@ jobs:
           if ($process.ExitCode -ne 0) { throw "Application exited with $($process.ExitCode)" }
           if (-not (Test-Path $result)) { throw 'No smoke-test receipt' }
           if ((Get-Content $result -Raw) -ne 'PASS') { throw 'Smoke test failed' }
-          Copy-Item (Join-Path $env:TEMP 'topmeeting-windows-preview.png') release/preview.png
       - name: Hash release assets
         shell: pwsh
         run: |
@@ -69,6 +68,5 @@ jobs:
             apps/windows/release/*.exe
             apps/windows/release/*.zip
             apps/windows/release/SHA256SUMS.txt
-            apps/windows/release/preview.png
           if-no-files-found: error
           retention-days: 30

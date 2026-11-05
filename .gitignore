@@ -32,3 +32,24 @@ recognition-terms.json
 apps/windows/release/
 *.webm
 apps/windows/runtime/
+
+# Local credentials, recovery snapshots, recordings and distributable artifacts
+credentials.bin
+document-accounts.bin
+meetings.previous.json
+meetings*.unreadable-*
+.meeting-write.lock
+*.pem
+*.p12
+*.pfx
+*.key
+*.sqlite*
+*.db
+*.flac
+*.mp4
+*.mov
+*.exe
+*.dmg
+*.zip
+*.app/
+*.tmp

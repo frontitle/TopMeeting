@@ -21,6 +21,30 @@ actor FeishuMock {
         if !value() { throw NSError(domain:"CoreChecks",code:1,userInfo:[NSLocalizedDescriptionKey:message]) }
     }
     @MainActor static func main() async throws {
+        let archiveRoot = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at:archiveRoot,withIntermediateDirectories:true)
+        defer { try? FileManager.default.removeItem(at:archiveRoot) }
+        let archive = MeetingArchive(directory:archiveRoot), staleArchive = MeetingArchive(directory:archiveRoot)
+        _ = try archive.load(); _ = try staleArchive.load()
+        var original = Meeting(); original.title = "First snapshot"
+        try archive.save([original])
+        var staleRejected = false
+        do { try staleArchive.save([]) } catch { staleRejected = true }
+        try check(staleRejected,"Stale writer replaced a newer meeting file")
+        var updated = original; updated.title = "Second snapshot"
+        try archive.save([updated])
+        let broken = Data("incomplete".utf8)
+        try broken.write(to:archiveRoot.appendingPathComponent("meetings.json"))
+        let recovery = MeetingArchive(directory:archiveRoot)
+        let restored = try recovery.load()
+        try check(restored.first?.title == original.title && recovery.recovered,"Previous snapshot was not recovered")
+        try FileManager.default.removeItem(at:archiveRoot.appendingPathComponent("meetings.previous.json"))
+        try broken.write(to:archiveRoot.appendingPathComponent("meetings.json"))
+        let unreadable = MeetingArchive(directory:archiveRoot)
+        do { _ = try unreadable.load() } catch {}
+        do { try unreadable.save([]) } catch {}
+        let remaining = try Data(contentsOf:archiveRoot.appendingPathComponent("meetings.json"))
+        try check(remaining == broken,"Unreadable library was overwritten")
         let clockStart = Date(timeIntervalSince1970:100)
         var recordingClock = RecordingClock(); recordingClock.start(at:clockStart)
         recordingClock.pause(at:clockStart.addingTimeInterval(10))

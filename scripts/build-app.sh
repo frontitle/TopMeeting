@@ -14,7 +14,7 @@ if [[ -f "$NODE_PREFIX/LICENSE" ]]; then
 else
     curl -fsSL --retry 2 "https://raw.githubusercontent.com/nodejs/node/$(node -p 'process.version')/LICENSE" -o "$APP/Contents/Resources/DocumentsRuntime/NODE-LICENSE"
 fi
-cp packages/documents/macos-bridge.cjs apps/windows/src/document-services.cjs "$APP/Contents/Resources/DocumentsRuntime/"
+cp packages/documents/macos-bridge.cjs packages/documents/document-services.cjs "$APP/Contents/Resources/DocumentsRuntime/"
 ICONSET="$PWD/.build/TopMeeting.iconset"
 mkdir -p "$ICONSET"
 swift scripts/build-icon.swift "$ICONSET/icon_512x512@2x.png"

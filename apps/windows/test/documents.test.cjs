@@ -1,6 +1,6 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-const {createDocument,safeLink}=require('../src/document-services.cjs');
+const {createDocument,safeLink}=require('../../../packages/documents/document-services.cjs');
 
 test('meeting links come from the selected provider',()=>{
   assert.throws(()=>safeLink('google','https://docs.google.com.attacker.example/x'));

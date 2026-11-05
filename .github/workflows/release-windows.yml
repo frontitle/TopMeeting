@@ -38,7 +38,7 @@ jobs:
           path: assets
           github-token: ${{ github.token }}
           run-id: ${{ inputs.build_run_id }}
-      - name: Verify and create draft release
+      - name: Verify assets and upload to the matching draft
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -46,4 +46,10 @@ jobs:
           cd assets
           sha256sum --check SHA256SUMS.txt
           cd ..
-          gh release create windows-v0.14.0-preview.1 assets/*.exe assets/*.zip assets/SHA256SUMS.txt assets/preview.png --draft --prerelease --target "$BUILD_SHA" --title "TopMeeting Windows 0.14.0 Preview 1" --notes-file docs/WINDOWS-PREVIEW-RELEASE.md
+          gh release view windows-v0.14.0-preview.1 --json isDraft,targetCommitish > /tmp/draft.json
+          python3 - <<'PYDRAFT'
+          import json, os
+          d = json.load(open('/tmp/draft.json'))
+          assert d['isDraft'] and d['targetCommitish'] == os.environ['BUILD_SHA']
+          PYDRAFT
+          gh release upload windows-v0.14.0-preview.1 assets/*.exe assets/*.zip assets/SHA256SUMS.txt --clobber

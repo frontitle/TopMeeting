@@ -46,7 +46,7 @@ extension MeetingStore {
         guard let i = meetings.firstIndex(where: { $0.id == id }) else { return }
         let previous = meetings[i].feishu
         meetings[i].feishu = state
-        do { try JSONEncoder().encode(meetings).write(to:directory.appendingPathComponent("meetings.json"),options:.atomic) }
+        do { try archive.save(meetings) }
         catch { meetings[i].feishu = previous; throw Gateway.error("无法保存同步进度，本次同步已暂停。") }
     }
     func performFeishuSync(id: UUID,final: Bool) async {

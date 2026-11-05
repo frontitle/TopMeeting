@@ -9,6 +9,12 @@
 - `packages/core`: browser-compatible JavaScript contracts for search, transcript deltas and evidence-checked summary patches. Tests use Node's built-in runner. This is a portability foundation; the current Swift client still owns its native meeting store and does not execute the JS core.
 - `schemas/extension-manifest.schema.json`: a versioned capability declaration. No arbitrary plugin loader or untrusted-code sandbox is shipped.
 
+## Storage and module boundaries
+
+Both hosts route meeting saves and document receipts through one local archive. The Windows host serializes writes and uses same-directory atomic replacement. The macOS host checks for a newer snapshot under a short file lock. Each archive retains a prior valid snapshot and preserves an unreadable original during recovery. Live captions are kept in memory until finalized.
+
+Provider API logic belongs in `packages/documents`. The macOS bridge and Windows host package that source directly. OS-specific account storage and UI stay in their host. The repository source check examines Git objects before push and in CI. Build directories, meeting files, credentials, local models and QA screenshots stay outside source history.
+
 ## Target boundaries
 
 ```text

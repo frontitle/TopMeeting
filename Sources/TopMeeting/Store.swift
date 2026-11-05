@@ -72,7 +72,6 @@ import AVFoundation
     private var summaryTasks: [UUID: Task<Void,Never>] = [:]
     private var summaryRuns: [UUID: UUID] = [:]
     private var summaryInputs: [UUID: String] = [:]
-    private var revision = 0
     let directory: URL
     var visibleMeetings: [Meeting] {
         meetings.filter { ($0.deletedAt != nil) == showingTrash && (showingTrash || meetingFilter.includes($0)) && $0.matchesSearch(search) }.sorted { $0.date > $1.date }
@@ -90,8 +89,11 @@ import AVFoundation
         return current?.listeningSpeaker(at:elapsed) ?? "识别说话人…"
     }
     var current: Meeting? { meetings.first { $0.id == selected } }
+    let archive: MeetingArchive
+    @Published private(set) var archiveAvailable = false
     init(root: URL? = nil) {
         directory = root ?? FileManager.default.urls(for:.applicationSupportDirectory, in:.userDomainMask)[0].appendingPathComponent("TopMeeting")
+        archive = MeetingArchive(directory:directory)
         if root == nil {
             base = UserDefaults.standard.string(forKey:providerKind.baseKey) ?? ""
             agent = UserDefaults.standard.string(forKey:providerKind.modelKey) ?? (providerKind == .openClaw ? "openclaw/main" : "")
@@ -100,8 +102,9 @@ import AVFoundation
         }
         do {
             try FileManager.default.createDirectory(at:directory, withIntermediateDirectories:true)
-            let url = directory.appendingPathComponent("meetings.json")
-            if FileManager.default.fileExists(atPath:url.path) { meetings = try JSONDecoder().decode([Meeting].self, from:Data(contentsOf:url)) }
+            meetings = try archive.load()
+            archiveAvailable = true
+            if archive.recovered { notice = "已从上一份快照恢复会议，原件保存在本机。" }
         } catch { notice = "会议资料读取失败：\(error.localizedDescription)" }
         for i in meetings.indices {
             for j in meetings[i].lines.indices { meetings[i].lines[j].live = false }
@@ -117,11 +120,12 @@ import AVFoundation
         capture.onText = { [weak self] id,text,final,time in
             guard let self, self.recording else { return }
             if !text.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty { self.liveCaption = text }
-            self.update { $0.acceptSpeech(id:id,text:text,final:final,time:self.offset + time) }
+            self.update(persist:final) { $0.acceptSpeech(id:id,text:text,final:final,time:self.offset + time) }
         }
         capture.onWords = { [weak self] id,words in
             guard let self, self.recording else { return }
-            self.update { m in
+            let committed = self.current?.lines.first(where:{$0.id == id})?.live == false
+            self.update(persist:committed) { m in
                 if let i = m.lines.firstIndex(where:{$0.id == id}) {
                     m.lines[i].words = words.map { SpeechWord(text:$0.text,start:$0.start + self.offset,end:$0.end + self.offset) }
                 }
@@ -349,16 +353,18 @@ import AVFoundation
         syncRecognitionTerms(); save()
         correctionStatus = "已纠正「\(old)」为「\(replacement)」· 后续识别将参考\(remember ? "常用术语" : "本场术语")"
     }
-    func update(_ change: (inout Meeting) -> Void) {
+    func update(persist: Bool = true,_ change: (inout Meeting) -> Void) {
         guard let index = meetings.firstIndex(where:{$0.id == selected}) else { return }
-        change(&meetings[index]); revision += 1; save()
+        change(&meetings[index]); if persist { save() }
     }
     func save() {
+        guard archiveAvailable else { notice = "会议资料尚未成功读取，保存已暂停"; return }
         let roster = allPeople.filter { !$0.id.hasPrefix("guest") && !$0.name.hasPrefix("说话人 ") && $0.name != "未标记" }
         rememberedPeople = roster
         do {
+            try archive.save(meetings)
             try JSONEncoder().encode(roster).write(to:directory.appendingPathComponent("people.json"),options:.atomic)
-            try JSONEncoder().encode(meetings).write(to:directory.appendingPathComponent("meetings.json"), options:.atomic) }
+        }
         catch { notice = "保存失败：\(error.localizedDescription)" }
     }
     func create() {
@@ -572,7 +578,7 @@ import AVFoundation
         guard summaryInputs[meeting.id] != fingerprint else { return }
         if meeting.summaryFingerprint == fingerprint && !meeting.notes.isEmpty {
             if isFinal {
-                update { $0.summaryState = "complete" }
+                if meeting.summaryState != "complete" { update { $0.summaryState = "complete" } }
                 if feishuAutoSync && feishuReady { syncFeishu(final:true) }
             }
             return

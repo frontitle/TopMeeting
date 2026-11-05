@@ -2,7 +2,7 @@
   "name": "topmeeting-windows",
   "productName": "TopMeeting",
   "version": "0.14.0",
-  "description": "TopMeeting Windows preview — local meetings and configurable AI summaries",
+  "description": "TopMeeting Windows preview \u2014 local meetings and configurable AI summaries",
   "author": "TopMeeting contributors",
   "license": "Apache-2.0",
   "private": true,
@@ -43,6 +43,10 @@
       {
         "from": "runtime",
         "to": "speech"
+      },
+      {
+        "from": "../../packages/documents/document-services.cjs",
+        "to": "document-services.cjs"
       }
     ],
     "win": {
@@ -51,7 +55,7 @@
         "zip"
       ],
       "artifactName": "TopMeeting-${version}-windows-${arch}.${ext}",
-      "icon": "build/icon.png"
+      "icon": "src/logo.png"
     },
     "nsis": {
       "oneClick": false,

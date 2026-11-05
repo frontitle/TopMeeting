@@ -1,13 +1,19 @@
-Windows x64 0.14.0 预览版
+## TopMeeting 0.14.0 for Windows x64
 
-下载 setup.exe 安装，或解压 ZIP 并运行 TopMeeting.exe。SHA256SUMS.txt 可用于校验。安装包尚未签名，Windows 可能提示未知发布者。
+Download the setup EXE for a per-user installation, or extract the ZIP and run TopMeeting.exe. SHA-256 checksums are provided with the release. The installer is unsigned.
 
-首次点「开始录音」会检查本地模型。未安装时，在原处选择下载约 220 MB 模型，或「先只录音」。仅录音不会生成实时字幕。模型就绪后需要再次点开始录音，录音才会开始。已有录音后，会议页会简短提示可连接文档账号，也可关闭提示。
+### First recording
 
-工作区统一主次按钮、输入框、面板、留白及明暗配色。
+Start Recording checks for local speech models before requesting the microphone. Download approximately 220 MB once, or choose audio-only recording. A download never starts recording automatically. Completed model files are reused on retry.
 
-已接入飞书、Google Docs、钉钉文档、腾讯文档和 Notion 的绑定设置。绑定后开启「开始录音时创建会议文档」，录音开始时建档并在界面提供快捷入口。各平台需要自有应用、集成凭据或个人授权。第三方账号的真实云端写入需在完成授权后验收。
+The workspace now uses consistent controls, quieter surfaces and light/dark colors. After a recording, a dismissible document suggestion explains how to create a document automatically next time.
 
-Windows CI 包含公开四人中文录音回放、打包后的模拟麦克风输入与暂停/继续、音频保存及实录落定检查。多人归属与重叠检测有误差，请在实录中核对。当前 Windows 文档扩展提供建档和链接，macOS 飞书另有完整文档内容同步。
+### Reliability
 
-[使用与账号配置](https://github.com/frontitle/TopMeeting/blob/main/apps/windows/README.md)
+Meeting saves are serialized and retain the previous valid snapshot. A failed save is reported to its caller and later attempts can retry. Corrupt libraries are preserved. Model summaries again work through the desktop interface, keep earlier notes when a request fails, and deduplicate unchanged input.
+
+### Checks
+
+Windows CI checks a public four-speaker recording, packaged microphone capture, pause/resume and floating-window navigation, offline transcript finalization, speaker identification, summaries and Markdown export. Document API tests use synthetic credentials and simulated provider responses. Real tenant consent and distant-room microphone quality require live acceptance testing.
+
+[Windows guide](https://github.com/frontitle/TopMeeting/blob/main/apps/windows/README.md) · [简体中文](https://github.com/frontitle/TopMeeting/blob/main/apps/windows/README.zh-CN.md)

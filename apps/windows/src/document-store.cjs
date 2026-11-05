@@ -1,26 +1,26 @@
-const fs=require('node:fs/promises');
+const {EncryptedSettings}=require('./encrypted-settings.cjs');
 const path=require('node:path');
 const {safeStorage,shell}=require('electron');
-const {services,bindAccount,createDocument,safeLink}=require('./document-services.cjs');
+const serviceModule=require('electron').app?.isPackaged
+  ? path.join(process.resourcesPath,'document-services.cjs')
+  : path.join(__dirname,'../../../packages/documents/document-services.cjs');
+const {services,bindAccount,createDocument,safeLink}=require(serviceModule);
 
 class DocumentStore {
   constructor(directory,meeting,persist,notify){
-    this.file=path.join(directory,'document-accounts.bin');
+    this.settings=new EncryptedSettings(path.join(directory,'document-accounts.bin'),safeStorage,accounts=>
+      Object.entries(accounts).every(([id,account])=>Object.hasOwn(services,id) && typeof account?.label==='string'));
     this.meeting=meeting;this.persist=persist;this.notify=notify;
     this.accounts={};this.pending=new Set();this.busy=false;
   }
-  async load(){
-    try{this.accounts=JSON.parse(safeStorage.decryptString(await fs.readFile(this.file)));}
-    catch(error){if(error.code!=='ENOENT') throw error;}
-  }
-  async save(){
-    if(!safeStorage.isEncryptionAvailable())throw new Error('系统凭据加密不可用');
-    const encrypted=safeStorage.encryptString(JSON.stringify(this.accounts));
-    this.saving=(this.saving||Promise.resolve()).catch(()=>{}).then(async()=>{
-      await fs.writeFile(this.file+'.tmp',encrypted);
-      await fs.rename(this.file+'.tmp',this.file);
-    });
-    await this.saving;
+  async load(){this.accounts=await this.settings.load();}
+  save(){return this.settings.save(this.accounts);}
+  async replaceAccount(id,account){
+    const before=this.accounts;
+    this.accounts={...before};
+    if(account)this.accounts[id]=account;
+    else delete this.accounts[id];
+    try{await this.save();}catch(error){this.accounts=before;throw error;}
   }
   public(){
     return Object.entries(services).map(([id,service])=>({id,name:service.name,label:this.accounts[id]?.label,enabled:!!this.accounts[id]?.enabled}));
@@ -30,16 +30,17 @@ class DocumentStore {
     this.busy=true;
     try{
       const account=await bindAccount(id,settings,url=>shell.openExternal(url));
-      this.accounts[id]={...account,enabled:!!settings.enabled};
-      await this.save();return this.public();
+      await this.replaceAccount(id,{...account,enabled:!!settings.enabled});return this.public();
     }finally{this.busy=false;}
   }
   async configure(id,action){
     if(this.busy||this.pending.size)throw new Error('请等待账号授权或文档创建完成');
     if(!this.accounts[id])throw new Error('请先绑定账号');
-    if(action==='disconnect')delete this.accounts[id];
-    else this.accounts[id].enabled=action==='enable';
-    await this.save();return this.public();
+    this.busy=true;
+    try{
+      const account=action==='disconnect'?null:{...this.accounts[id],enabled:action==='enable'};
+      await this.replaceAccount(id,account);return this.public();
+    }finally{this.busy=false;}
   }
   async start(id){
     const m=this.meeting(id);

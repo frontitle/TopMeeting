@@ -125,6 +125,7 @@ struct Workspace: View {
             }.padding(28).frame(width:580)
         }
         .sheet(item:$editing) { line in LineEditor(line:line) { text, name in store.correct(id:line.id,text:text,speaker:name) } }
+        .disabled(!store.archiveAvailable)
         .alert("TopMeeting", isPresented:Binding(get:{store.notice != nil},set:{if !$0 { store.notice = nil }})) { Button(L10n.tr("好")) { store.notice = nil } } message: { Text(L10n.tr(store.notice ?? "")) }
     }
     func header(_ m: Meeting) -> some View {

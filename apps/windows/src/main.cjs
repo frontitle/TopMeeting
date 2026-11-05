@@ -3,6 +3,8 @@ const fs=require('node:fs/promises'),path=require('node:path'),os=require('node:
 const {pathToFileURL}=require('node:url');
 const {LocalSpeech}=require('./local-speech.cjs');
 const {listeningPanel}=require('./overlay.cjs');
+const {EncryptedSettings}=require('./encrypted-settings.cjs');
+const {MeetingFile}=require('./meeting-file.cjs');
 const {DocumentStore}=require('./document-store.cjs');
 const {endpoint,summaryInput,readSSE}=require('./domain.cjs');
 const smoke=process.argv.includes('--smoke-test');
@@ -12,12 +14,15 @@ if(smoke && process.env.TOPMEETING_SMOKE_FIXTURE){
   app.commandLine.appendSwitch('use-file-for-fake-audio-capture',process.env.TOPMEETING_SMOKE_FIXTURE);
 }
 if(smoke) app.setPath('userData',path.join(os.tmpdir(),'topmeeting-smoke-'+crypto.randomUUID()));
-let speech,overlay,documents,root,win,active=null,meetings=[],config={},inFlight=new Set(),saveChain=Promise.resolve();
+let speech,overlay,documents,root,win,active=null,meetings=[],config={},inFlight=new Set(),meetingFile;
 const ui=pathToFileURL(path.join(__dirname,'index.html')).href;
-async function persist(){const data=JSON.stringify(meetings);saveChain=saveChain.then(async()=>{await fs.writeFile(path.join(root,'meetings.tmp'),data);await fs.rename(path.join(root,'meetings.tmp'),path.join(root,'meetings.json'));});await saveChain;}
+function persist(){return meetingFile.save(meetings);}
 function meeting(id){const m=meetings.find(m=>m.id===id);if(!m)throw new Error('会议不存在');return m;}
 function bind(name,handler){ipcMain.handle(name,async(event,...args)=>{if(event.sender!==win.webContents || event.senderFrame!==win.webContents.mainFrame || event.senderFrame.url!==ui)throw new Error('Invalid caller');return handler(...args);});}
-function publicConfig(){return {...config,token:undefined,asrToken:undefined,hasToken:!!config.token,hasASRToken:!!config.asrToken};}
+function publicConfig(){
+  const {kind,base,model,language,token}=config;
+  return {kind,base,model,language,hasToken:!!token};
+}
 const primaryInstance=app.requestSingleInstanceLock();
 if(!primaryInstance) app.quit();
 app.on('second-instance',()=>{
@@ -25,8 +30,13 @@ app.on('second-instance',()=>{
 });
 if(primaryInstance) app.whenReady().then(async()=>{
  root=app.getPath('userData'); await fs.mkdir(root,{recursive:true});await fs.mkdir(path.join(root,'audio'),{recursive:true});
- try{meetings=JSON.parse(await fs.readFile(path.join(root,'meetings.json'),'utf8'));}catch(e){if(e.code!=='ENOENT')throw e;}
- try{config=JSON.parse(safeStorage.decryptString(await fs.readFile(path.join(root,'credentials.bin'))));}catch(e){if(e.code!=='ENOENT')throw e;}
+ meetingFile=new MeetingFile(root);
+ meetings=await meetingFile.load();
+ const startupNotices=[];
+ const modelSettings=new EncryptedSettings(path.join(root,'credentials.bin'),safeStorage);
+ try{config=await modelSettings.load();}
+ catch{startupNotices.push('模型凭据暂不可用，可在设置中重新绑定。');}
+
  session.defaultSession.setPermissionRequestHandler((contents,permission,callback,details)=>callback(contents===win?.webContents && details.requestingUrl===ui && permission==='media' && !details.mediaTypes?.includes('video')));
  session.defaultSession.setPermissionCheckHandler((contents,permission)=>contents===win?.webContents && contents.getURL()===ui && permission==='media');
  win=new BrowserWindow({width:1400,height:920,minWidth:1000,minHeight:680,show:!smoke,backgroundColor:'#f5f7fc',icon:path.join(__dirname,'logo.png'),webPreferences:{preload:path.join(__dirname,'preload.cjs'),nodeIntegration:false,contextIsolation:true,sandbox:true}});
@@ -35,7 +45,7 @@ if(primaryInstance) app.whenReady().then(async()=>{
  overlay=listeningPanel(win);
  win.on('closed',()=>overlay.destroy());
  documents=new DocumentStore(root,meeting,persist,id=>win.webContents.send('meeting-updated',id));
- await documents.load();
+ try{await documents.load();}catch{startupNotices.push("文档账号暂不可用，可在设置中重新绑定。");}
  speech=new LocalSpeech(process.resourcesPath,root,event=>{
    if(event.type==='modelProgress'){win.webContents.send('model-progress',event.count,event.total);return;}
    if(!active) return;
@@ -133,7 +143,15 @@ if(primaryInstance) app.whenReady().then(async()=>{
  bind('create',async()=>{if(active)throw new Error('请先结束录音');const m={id:crypto.randomUUID(),title:'新会议',date:new Date().toISOString(),lines:[],notes:'',context:'',duration:0,recordings:[]};meetings.unshift(m);await persist();return m;});
  bind('edit',async(id,patch)=>{const m=meeting(id);if(inFlight.has(id))throw new Error('正在处理，请稍后修改');for(const key of ['title','context']) if(typeof patch[key]==='string')m[key]=patch[key].slice(0,20000);if(Array.isArray(patch.lines)){if(patch.lines.length>100000)throw new Error('实录过长');m.lines=patch.lines.map(l=>({id:typeof l.id==='string'?l.id:crypto.randomUUID(),speaker:String(l.speaker||'未标记').slice(0,100),text:String(l.text||'').slice(0,100000)}));}await persist();return m;});
  bind('trash',async(id,deleted)=>{if(active?.id===id || inFlight.has(id))throw new Error('会议正在使用中');meeting(id).deletedAt=deleted?new Date().toISOString():null;await persist();});
- bind('settings',async(next)=>{if(active||inFlight.size)throw new Error('请在会议处理结束后修改设置');const c={};for(const k of ['kind','base','model','language'])c[k]=String(next[k]||'').trim();endpoint(c.base,'chat/completions');if(!c.model)throw new Error('请填写模型或 Agent');c.token=next.token||config.token||'';if(!safeStorage.isEncryptionAvailable())throw new Error('系统凭据加密不可用，未保存');const encrypted=safeStorage.encryptString(JSON.stringify(c));await fs.writeFile(path.join(root,'credentials.tmp'),encrypted);await fs.rename(path.join(root,'credentials.tmp'),path.join(root,'credentials.bin'));config=c;return publicConfig();});
+ bind('settings',async next=>{
+   if(active||inFlight.size)throw new Error('请在会议处理结束后修改设置');
+   const updated={};
+   for(const key of ['kind','base','model','language'])updated[key]=String(next[key]||'').trim();
+   endpoint(updated.base,'chat/completions');
+   if(!updated.model)throw new Error('请填写模型或 Agent');
+   updated.token=next.token||config.token||'';
+   await modelSettings.save(updated);config=updated;return publicConfig();
+ });
  bind('record-start',async(id,local=true)=>{
    if(active||inFlight.has(id))throw new Error('会议正在使用中');
    const m=meeting(id),file=crypto.randomUUID()+'.webm';
@@ -145,7 +163,15 @@ if(primaryInstance) app.whenReady().then(async()=>{
      m.recordings.push(file);await persist();
      if(capturing.local) await overlay.show(m.duration);
      documents.start(id).catch(error=>win.webContents.send('speech-error',error.message));
-   }catch(error){active=null;speech.child?.kill();overlay.hide();throw error;}
+   }catch(error){
+     active=null;speech.child?.kill();overlay.hide();
+     if(m.recordings.includes(file)){
+       m.recordings=m.recordings.filter(existing=>existing!==file);
+       await persist();
+     }
+     await fs.rm(path.join(root,'audio',file),{force:true});
+     throw error;
+   }
  });
  bind('record-chunk',async(bytes)=>{if(!active)throw new Error('没有正在进行的录音');if(!(bytes instanceof Uint8Array)||bytes.length>20*1024*1024)throw new Error('音频块无效');await fs.appendFile(path.join(root,'audio',active.file),Buffer.from(bytes));});
  bind('record-stop',async(duration)=>{
@@ -175,10 +201,12 @@ if(primaryInstance) app.whenReady().then(async()=>{
  bind('audio',async(id,index)=>{const m=meeting(id);if(active?.id===id)throw new Error('请先结束录音');const file=m.recordings[index];if(!file)throw new Error('录音不存在');return new Uint8Array(await fs.readFile(path.join(root,'audio',file)));});
  bind('export',async(id)=>{const m=meeting(id);const result=await dialog.showSaveDialog(win,{defaultPath:'meeting.md',filters:[{name:'Markdown',extensions:['md']}]});if(!result.canceled)await fs.writeFile(result.filePath,`# ${m.title}\n\n${m.notes}\n\n## 实录\n\n${m.lines.map(l=>`**${l.speaker}** ${l.text}`).join('\n\n')}`);});
  await win.loadFile(path.join(__dirname,'index.html'));
+ if(meetingFile.recovered)startupNotices.push('已从上一份快照恢复会议，原件保存在本机。');
+ if(startupNotices.length)win.webContents.send('speech-error',startupNotices.join(' '));
  if(smoke){try{const result=await win.webContents.executeJavaScript(`(async()=>{await window.api.create();const data=await window.api.load();if(data.meetings.length!==1)throw Error('Storage failure');await window.api.edit(data.meetings[0].id,{title:'Synthetic smoke fixture',lines:[{text:'Release check',speaker:'Test'}]});await window.api.trash(data.meetings[0].id,true);await window.api.trash(data.meetings[0].id,false);await window.api.start(data.meetings[0].id,false);await window.api.chunk(new Uint8Array([1,2,3]));await window.api.stop(2);const audio=await window.api.audio(data.meetings[0].id,0);if(audio.length!==3||audio[2]!==3)throw Error('Audio persistence failed');if(!document.querySelector('#record'))throw Error('UI missing');return 'PASS';})()`);await win.webContents.executeJavaScript('reload()');
  if(process.env.TOPMEETING_SMOKE_FIXTURE){
    await require('./packaged-checks.cjs').checkWorkspace(win,speech,root,process.env.TOPMEETING_SMOKE_MODELS);
  }
- await new Promise(resolve=>setTimeout(resolve,500));await fs.writeFile(path.join(os.tmpdir(),'topmeeting-windows-preview.png'),(await win.webContents.capturePage()).toPNG());console.log('WINDOWS_SMOKE_'+result);await fs.writeFile(path.join(os.tmpdir(),'topmeeting-smoke-result.txt'),result);app.exit(0);}catch(e){console.error(e);app.exit(1);}}
-}).catch(e=>{console.error(e.message);app.exit(1);});
+ console.log('WINDOWS_SMOKE_'+result);await fs.writeFile(path.join(os.tmpdir(),'topmeeting-smoke-result.txt'),result);app.exit(0);}catch(e){console.error(e);app.exit(1);}}
+}).catch(error=>{if(!smoke)dialog.showErrorBox('TopMeeting 无法打开资料库',error.message+'\n'+app.getPath('userData'));else console.error(error.message);app.exit(1);});
 app.on('window-all-closed',()=>app.quit());

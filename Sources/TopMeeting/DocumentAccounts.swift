@@ -86,7 +86,7 @@ extension MeetingStore {
         guard let index = meetings.firstIndex(where:{$0.id==id && $0.deletedAt==nil}) else { throw Gateway.error("会议已移除") }
         let before = meetings[index].documentLinks
         var links = before ?? [:]; links[service.id] = link; meetings[index].documentLinks = links
-        do { try JSONEncoder().encode(meetings).write(to:directory.appendingPathComponent("meetings.json"),options:.atomic) }
+        do { try archive.save(meetings) }
         catch { meetings[index].documentLinks = before; throw error }
     }
     func startDocumentLinks(id: UUID) {

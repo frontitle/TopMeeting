@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {bindAccount,createDocument} = require('../../../apps/windows/src/document-services.cjs');
+const {bindAccount,createDocument} = require('../document-services.cjs');
 
 for(const provider of ['google','feishu']){
   test(provider+' desktop authorization verifies callback state, identity and token refresh',async t=>{

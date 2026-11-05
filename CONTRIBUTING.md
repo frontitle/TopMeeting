@@ -2,10 +2,14 @@
 
 TopMeeting is an Apache-2.0 project. Keep platform-specific capture, credentials and UI separate from meeting data and connector contracts.
 
+## Before publishing source
+
+Enable the repository hook with `git config core.hooksPath .githooks` in a fresh clone. Run `python3 scripts/check-source.py --index` before committing and `python3 scripts/check-source.py --history HEAD` before publishing. The checks inspect Git objects and report paths only. The hook checks the history being pushed, including files added and removed in earlier commits.
+
 ## Local checks
 
 - macOS with Swift 6 and macOS 26+ SDK: `swift build -c release` and `./scripts/check.sh`.
-- Node.js 22+: `node --test packages/core/test/core.test.js` (no network or dependencies).
+- Node.js 22+: `node --test packages/core/test/core.test.js packages/documents/test/*.test.cjs` (no network or dependencies).
 - UI strings: edit `localization/en.tsv`, then `python3 scripts/generate-localization.py`.
 - Native previews: `./scripts/preview-workspace.sh /absolute/path/preview.png`; use `dark`, `compact` or `picker` to inspect specific states. Fixtures never load the user's real meeting store.
 - Real audio checks require your own authorized sample: `./scripts/check-continuous-speech.sh /absolute/path/sample.wav`. Do not commit the audio or recognized text.
