@@ -18,7 +18,12 @@ async function persist(){const data=JSON.stringify(meetings);saveChain=saveChain
 function meeting(id){const m=meetings.find(m=>m.id===id);if(!m)throw new Error('会议不存在');return m;}
 function bind(name,handler){ipcMain.handle(name,async(event,...args)=>{if(event.sender!==win.webContents || event.senderFrame!==win.webContents.mainFrame || event.senderFrame.url!==ui)throw new Error('Invalid caller');return handler(...args);});}
 function publicConfig(){return {...config,token:undefined,asrToken:undefined,hasToken:!!config.token,hasASRToken:!!config.asrToken};}
-app.whenReady().then(async()=>{
+const primaryInstance=app.requestSingleInstanceLock();
+if(!primaryInstance) app.quit();
+app.on('second-instance',()=>{
+  if(win){if(win.isMinimized())win.restore();win.show();win.focus();}
+});
+if(primaryInstance) app.whenReady().then(async()=>{
  root=app.getPath('userData'); await fs.mkdir(root,{recursive:true});await fs.mkdir(path.join(root,'audio'),{recursive:true});
  try{meetings=JSON.parse(await fs.readFile(path.join(root,'meetings.json'),'utf8'));}catch(e){if(e.code!=='ENOENT')throw e;}
  try{config=JSON.parse(safeStorage.decryptString(await fs.readFile(path.join(root,'credentials.bin'))));}catch(e){if(e.code!=='ENOENT')throw e;}

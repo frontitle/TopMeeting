@@ -26,7 +26,7 @@ class DocumentStore {
     return Object.entries(services).map(([id,service])=>({id,name:service.name,label:this.accounts[id]?.label,enabled:!!this.accounts[id]?.enabled}));
   }
   async bind(id,settings){
-    if(this.busy)throw new Error('请等待当前账号授权完成');
+    if(this.busy||this.pending.size)throw new Error('请等待账号授权或文档创建完成');
     this.busy=true;
     try{
       const account=await bindAccount(id,settings,url=>shell.openExternal(url));
@@ -35,6 +35,7 @@ class DocumentStore {
     }finally{this.busy=false;}
   }
   async configure(id,action){
+    if(this.busy||this.pending.size)throw new Error('请等待账号授权或文档创建完成');
     if(!this.accounts[id])throw new Error('请先绑定账号');
     if(action==='disconnect')delete this.accounts[id];
     else this.accounts[id].enabled=action==='enable';

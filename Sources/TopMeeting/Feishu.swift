@@ -84,6 +84,11 @@ struct FeishuCLI {
         _ = try await run(["profile","add","--name","topmeeting-" + id,"--app-id",id,"--brand","feishu","--app-secret-stdin"],Data((secret+"\n").utf8))
         UserDefaults.standard.set(id,forKey:"feishuBoundAppID")
     }
+    func disconnectApplication() async throws {
+        guard let id = UserDefaults.standard.string(forKey:"feishuBoundAppID"), Self.validAppID(id) else { return }
+        _ = try await run(["profile","remove","topmeeting-" + id],nil)
+        UserDefaults.standard.removeObject(forKey:"feishuBoundAppID")
+    }
     func verifiedUser() async throws -> (ready: Bool,name: String?) {
         let object = try Self.object(await run(["auth","status","--json","--verify"],nil))
         let user = (object["identities"] as? [String:Any])?["user"] as? [String:Any]

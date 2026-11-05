@@ -24,7 +24,7 @@ struct DocumentAccountSettings: View {
                 Toggle(L10n.tr("开始录音时创建会议文档"),isOn:Binding(get:{store.documentAutomatic[service.id] == true},set:{store.setDocumentAutomatic(service,$0)}))
                 Button(L10n.tr("解除绑定")) {
                     do { try store.disconnectDocumentAccount(service); message = "" } catch { message = error.localizedDescription }
-                }.disabled(waiting || store.recording)
+                }.disabled(waiting || store.recording || !store.documentPending.isEmpty)
             } else {
                 if service == .tencent { Link(L10n.tr("获取腾讯文档个人授权"),destination:URL(string:"https://docs.qq.com/open/auth/mcp.html")!) }
                 ForEach(fields,id:\.0) { key,label,secure in
@@ -41,7 +41,7 @@ struct DocumentAccountSettings: View {
                             store.setDocumentAutomatic(chosen,true); values = [:]; message = ""
                         } catch { message = error.localizedDescription }
                     }
-                }.disabled(waiting || store.recording)
+                }.disabled(waiting || store.recording || !store.documentPending.isEmpty)
             }
             if !message.isEmpty { Text(message).font(.caption).foregroundStyle(.secondary) }
         }

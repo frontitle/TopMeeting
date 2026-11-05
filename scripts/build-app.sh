@@ -6,7 +6,14 @@ APP="$PWD/dist/TopMeeting.app"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp LICENSE NOTICE THIRD_PARTY_NOTICES.md "$APP/Contents/Resources/"
 mkdir -p "$APP/Contents/Resources/DocumentsRuntime"
+node -e 'if (Number(process.versions.node.split(".")[0]) < 22) process.exit(1)'
 cp -L "$(command -v node)" "$APP/Contents/Resources/DocumentsRuntime/node"
+NODE_PREFIX=$(node -p 'require("node:path").resolve(require("node:fs").realpathSync(process.execPath),"../..")')
+if [[ -f "$NODE_PREFIX/LICENSE" ]]; then
+    cp "$NODE_PREFIX/LICENSE" "$APP/Contents/Resources/DocumentsRuntime/NODE-LICENSE"
+else
+    curl -fsSL --retry 2 "https://raw.githubusercontent.com/nodejs/node/$(node -p 'process.version')/LICENSE" -o "$APP/Contents/Resources/DocumentsRuntime/NODE-LICENSE"
+fi
 cp packages/documents/macos-bridge.cjs apps/windows/src/document-services.cjs "$APP/Contents/Resources/DocumentsRuntime/"
 ICONSET="$PWD/.build/TopMeeting.iconset"
 mkdir -p "$ICONSET"

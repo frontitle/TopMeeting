@@ -6,6 +6,7 @@ struct FeishuSettings: View {
     @EnvironmentObject var store: MeetingStore
     @InlineState private var appID = UserDefaults.standard.string(forKey:"feishuBoundAppID") ?? ""
     @InlineState private var secret = ""
+    @InlineState private var confirmDisconnect = false
     var body: some View {
         Section(L10n.tr("飞书文档")) {
             TextField("飞书应用 App ID",text:$appID)
@@ -17,10 +18,32 @@ struct FeishuSettings: View {
                     defer { store.feishuChecking = false }
                     do { try await FeishuCLI().bindApplication(id:id,secret:value)
                         store.feishuLoginURL = nil; store.feishuDeviceCode = nil; store.feishuReady = false
+                        if UserDefaults.standard.object(forKey:"feishuAutoSync") == nil { store.feishuAutoSync = true; store.saveFeishuPreferences() }
                         store.feishuStatus = "已绑定应用 "+id+"，请登录并核对飞书授权页中的应用名称和账号。"
                     } catch { store.feishuStatus = error.localizedDescription }
                 }
             }.disabled(secret.isEmpty || !FeishuCLI.validAppID(appID) || store.feishuChecking)
+            if let bound = UserDefaults.standard.string(forKey:"feishuBoundAppID") {
+                HStack {
+                    Text("已绑定应用 · "+bound).font(.caption)
+                    Spacer()
+                    Button(L10n.tr("解除绑定")) { confirmDisconnect = true }
+                        .disabled(store.feishuChecking || store.recording || !store.feishuBusy.isEmpty)
+                }
+                .alert("解除此设备的飞书绑定？",isPresented:$confirmDisconnect) {
+                    Button(L10n.tr("取消"),role:.cancel) {}
+                    Button(L10n.tr("解除绑定"),role:.destructive) {
+                        store.feishuChecking = true
+                        Task { @MainActor in
+                            defer { store.feishuChecking = false }
+                            do { try await FeishuCLI().disconnectApplication()
+                                store.feishuLoginURL = nil; store.feishuDeviceCode = nil; store.feishuReady = false
+                                store.feishuAutoSync = false; store.saveFeishuPreferences(); store.feishuStatus = "已解除绑定"; appID = ""
+                            } catch { store.feishuStatus = error.localizedDescription }
+                        }
+                    }
+                }
+            }
             Text(L10n.tr(store.feishuStatus)).font(.caption).foregroundStyle(.secondary)
             HStack {
                 Button(L10n.tr("检查连接"),action:store.checkFeishu)

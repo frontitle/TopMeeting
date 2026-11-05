@@ -10,7 +10,7 @@ function fields(){
   if(!service)return;
   $('accountFields').replaceChildren();
   $('accountStatus').textContent=service.label?'已绑定 · '+service.label:'尚未绑定';
-  $('autoDoc').checked=service.enabled;$('saveAuto').disabled=$('unlink').disabled=!service.label;
+  $('autoDoc').checked=service.label?service.enabled:true;$('saveAuto').disabled=$('unlink').disabled=!service.label;
   for(const [key,label,type] of providerFields[service.id]){
     const field=document.createElement('label'),input=document.createElement('input');
     field.textContent=label;input.type=type||'text';input.dataset.key=key;input.autocomplete='off';field.append(input);$('accountFields').append(field);
