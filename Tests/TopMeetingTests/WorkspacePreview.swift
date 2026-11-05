@@ -22,6 +22,12 @@ import SwiftUI
         meeting.summaryState = "complete"
         var older = Meeting(); older.title = "项目进度同步 · 示例"; older.date = Date().addingTimeInterval(-86400)
         var last = Meeting(); last.title = "本周计划讨论 · 示例"; last.date = Date().addingTimeInterval(-172800)
+        if CommandLine.arguments.contains("first-meeting") {
+            meeting = Meeting(); meeting.title = "新会议"
+        } else if CommandLine.arguments.contains("after-recording") {
+            meeting.audioPath = "/preview/synthetic.caf"
+            store.documentLabels = [:]; store.feishuReady = false
+        }
         store.meetings = [meeting,older,last]; store.selected = meeting.id
         store.voiceReady = true; store.voiceStatus = "说话人识别已就绪"
         let root: AnyView
