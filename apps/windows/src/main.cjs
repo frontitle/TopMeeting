@@ -41,7 +41,23 @@ if(primaryInstance) app.whenReady().then(async()=>{
  session.defaultSession.setPermissionCheckHandler((contents,permission)=>contents===win?.webContents && contents.getURL()===ui && permission==='media');
  win=new BrowserWindow({width:1400,height:920,minWidth:1000,minHeight:680,show:!smoke,backgroundColor:'#f5f7fc',icon:path.join(__dirname,'logo.png'),webPreferences:{preload:path.join(__dirname,'preload.cjs'),nodeIntegration:false,contextIsolation:true,sandbox:true}});
  win.setMenuBarVisibility(false);win.webContents.setWindowOpenHandler(()=>({action:'deny'}));win.webContents.on('will-navigate',e=>e.preventDefault());
- win.on('close',e=>{if(active || inFlight.size){e.preventDefault();dialog.showMessageBox(win,{message:'请先结束录音并等待保存或总结完成。',buttons:['知道了']});}});
+ let closing=false, flushing=false;
+ win.on('close',event=>{
+   if(closing)return;
+   event.preventDefault();
+   if(active || inFlight.size){
+     dialog.showMessageBox(win,{message:'请先结束录音并等待保存或总结完成。',buttons:['知道了']});
+     return;
+   }
+   if(flushing)return;
+   flushing=true;
+   const close=()=>{closing=true;win.close();};
+   persist().then(close).catch(async error=>{
+     const result=await dialog.showMessageBox(win,{type:'error',message:'最新修改未能保存',
+       detail:error.message,buttons:['返回会议','放弃未保存修改并退出'],defaultId:0,cancelId:0});
+     if(result.response===1)close();
+   }).finally(()=>{flushing=false;});
+ });
  overlay=listeningPanel(win);
  win.on('closed',()=>overlay.destroy());
  documents=new DocumentStore(root,meeting,persist,id=>win.webContents.send('meeting-updated',id));
@@ -49,7 +65,7 @@ if(primaryInstance) app.whenReady().then(async()=>{
  speech=new LocalSpeech(process.resourcesPath,root,event=>{
    if(event.type==='modelProgress'){win.webContents.send('model-progress',event.count,event.total);return;}
    if(!active) return;
-   if(event.type==='error') win.webContents.send('speech-error',event.message);
+   if(event.type==='error' || event.type==='warning') win.webContents.send('speech-error',event.message);
    if(event.type==='roster' || event.type==='attribution'){
      const m=meeting(active.id);
      if(event.type==='roster')m.speakers=event.speakers;

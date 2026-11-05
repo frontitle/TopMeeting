@@ -1,11 +1,11 @@
-let context,node,source,pcmQueue,flushPCM,pcmError,queued;
+let context,node,source,pcmQueue,flushPCM,pcmError,queued,captureWarning;
 function showTime(){
   const seconds=(current()?.duration||0)+elapsed+(paused?0:(Date.now()-started)/1000);
   $('time').textContent=clock(seconds);api.overlay(paused,seconds).catch(()=>{});
 }
 async function begin(local=true){
   if(busy)return;
-  busy=true;render();
+  busy=true;captureWarning="";render();
   let opened=false;
   try{
     stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:true},video:false});
@@ -37,7 +37,7 @@ async function begin(local=true){
     recorder.start(5000);started=Date.now();elapsed=0;paused=false;
     timer=setInterval(showTime,500);
     $('record').textContent='结束录音';$('pause').hidden=false;$('pause').textContent='暂停';
-    notice(local?'':'仅录音，本场不生成实时字幕。');
+    notice(local?captureWarning:'仅录音，本场不生成实时字幕。');
   }catch(error){
     source?.disconnect();node?.disconnect();await context?.close().catch(()=>{});stream?.getTracks().forEach(t=>t.stop());recorder=null;
     node=null;context=null;source=null;if(opened)await api.stop(0);
@@ -131,6 +131,6 @@ $('hidePrepare').onclick=()=>{guideMeeting=null;render();$('record').focus();};
 $('connectDocs').onclick=()=>$('accounts').click();
 $('hideDocHint').onclick=()=>{localStorage.setItem('documentHintDismissed','1');render();};
 $('pause').onclick=()=>action(togglePause);api.onTogglePause(()=>action(togglePause));
-api.onSpeechError(message=>notice(message));
+api.onSpeechError(message=>{captureWarning=message;notice(message);});
 api.onUpdate(id=>{if(id!==selected)return;if(document.activeElement?.closest('.line, .context, #title'))return;action(reload);});
 $('models').onclick=()=>action(installModels);

@@ -10,7 +10,7 @@ The workspace now uses consistent controls, quieter surfaces and light/dark colo
 
 ### Reliability
 
-Meeting saves are serialized and retain the previous valid snapshot. A failed save is reported to its caller and later attempts can retry. Corrupt libraries are preserved. Model summaries again work through the desktop interface, keep earlier notes when a request fails, and deduplicate unchanged input.
+Meeting saves are serialized and retain the previous valid snapshot. A failed save is reported to its caller and later attempts can retry. Corrupt libraries are preserved. Unreadable document or model credentials leave local recording available. If a voice profile is damaged, local transcription continues and preserves the profile for recovery. Model summaries again work through the desktop interface, keep earlier notes when a request fails, and deduplicate unchanged input.
 
 ### Checks
 

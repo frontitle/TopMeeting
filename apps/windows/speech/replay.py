@@ -45,3 +45,15 @@ with tempfile.TemporaryDirectory() as data:
     assert result['type']=='identity' and any(p['name']=='Test speaker' for p in result['profiles'])
     print(json.dumps({"seconds":round(len(samples)/16000,1),"partialUpdates":partials,"finalParagraphs":len(finals),
           "canonicalCandidates":len(bank['clusters']), "rosterSize":len(roster),"dominantIdentities":len(identities),"paragraphParticipants":len({v["id"] for e in finals for v in e["voices"]}),"overlapParagraphs":sum(e['overlap'] for e in finals)}))
+
+    # Simulate a malformed local profile without replacing it. ASR should keep producing text.
+    corrupt=Path(data)/'damaged-profiles.json'
+    corrupt.write_text('{broken')
+    excerpt=requests[:48]+[{"cmd":"finish"}]
+    fallback=subprocess.run([runtime,worker,"listen",models,str(corrupt),"degraded","0"],
+        input=''.join(json.dumps(r)+'\n' for r in excerpt),capture_output=True,text=True,timeout=90,check=True)
+    fallback_events=[json.loads(line) for line in fallback.stdout.splitlines()]
+    assert any(e['type']=='warning' for e in fallback_events)
+    assert any(e['type']=='final' and e['text'] for e in fallback_events)
+    assert fallback_events[-1]['type']=='finished' and corrupt.read_text()=='{broken'
+    print('PASS: damaged speaker profile preserved, local ASR continued.')

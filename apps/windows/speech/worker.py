@@ -15,8 +15,13 @@ class Session:
     def __init__(self, root, profiles, meeting, offset):
         import sherpa_onnx
         from engine import Engine
-        self.voice = Engine(root, profiles)
-        self.voice.reset(meeting, offset)
+        try:
+            self.voice = Engine(root, profiles)
+            self.voice.reset(meeting, offset)
+        except Exception:
+            self.voice = None
+            emit({"type":"warning","message":"声纹资料暂不可用，本场继续本地转写。"})
+
         self.recognizer = sherpa_onnx.OnlineRecognizer.from_transducer(
             tokens=str(root / "tokens.txt"),
             **{k: str(root / (k + "-epoch-99-avg-1.int8.onnx")) for k in ["encoder", "decoder", "joiner"]},
@@ -52,7 +57,18 @@ class Session:
                     paragraph["assignment"] = assignment
                     emit({"type":"attribution","start":paragraph["start"]+self.offset,**assignment})
 
+    def apply_voice(self, operation):
+        if self.voice is None:
+            return
+        try:
+            self.update_turns(operation())
+        except Exception:
+            self.voice = None
+            emit({"type":"warning","message":"声纹处理已暂停，录音和本地转写继续。"})
+
     def speaker(self, start, end):
+        if self.voice is None:
+            return {"speakerID":"unknown","speaker":"未标记","overlap":False,"voices":[]}
         scores = defaultdict(float)
         overlap = 0
         simultaneous = defaultdict(float)
@@ -80,8 +96,8 @@ class Session:
 
     def finalize(self, text):
         if text:
-            if self.voice.total != self.voice.last_inference:
-                self.update_turns(self.voice.infer(self.voice.buffer, (self.voice.total-len(self.voice.buffer))/16000))
+            if self.voice is not None and self.voice.total != self.voice.last_inference:
+                self.apply_voice(lambda: self.voice.infer(self.voice.buffer,(self.voice.total-len(self.voice.buffer))/16000))
             assignment = self.speaker(self.start,self.time)
             self.recent.append({"start":self.start,"end":self.time,"assignment":assignment})
             emit({"type":"final","text":text,"start":self.start+self.offset,"end":self.time+self.offset,**assignment})
@@ -91,7 +107,7 @@ class Session:
 
     def push(self, samples):
         import numpy as np
-        self.update_turns(self.voice.push(samples, 16000))
+        self.apply_voice(lambda: self.voice.push(samples,16000))
         self.time += len(samples)/16000
         peak = float(np.max(np.abs(samples))) if len(samples) else 0
         # Peak-limited gain only affects speech recognition. Voice embeddings use raw PCM.
@@ -108,7 +124,7 @@ class Session:
         self.stream.accept_waveform(16000, np.zeros(9600, dtype=np.float32))
         self.stream.input_finished()
         self.finalize(self.decode())
-        self.voice.save()
+        self.apply_voice(lambda: self.voice.save())
 
 def main():
     mode, directory, profiles, *args = sys.argv[1:]
@@ -139,6 +155,8 @@ def main():
             return
         if request["cmd"] == "name":
             try:
+                if session.voice is None:
+                    raise ValueError("本场声纹处理已暂停")
                 emit(session.voice.name_or_merge(args[0],request["source"],request["name"],target=request.get("target")))
             except ValueError as error:
                 emit({"type":"identityError","message":str(error)})

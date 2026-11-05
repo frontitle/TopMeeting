@@ -10,7 +10,7 @@ class EncryptedSettings {
   async load(){
     let encrypted;
     try{encrypted=await fs.readFile(this.file);}
-    catch(error){if(error.code==='ENOENT')return {};throw error;}
+    catch(error){if(error.code==='ENOENT')return {};this.preserve=true;throw error;}
     try{
       const value=JSON.parse(this.vault.decryptString(encrypted));
       if(!value || typeof value!=='object' || Array.isArray(value) || !this.validate(value))throw Error('Invalid settings');

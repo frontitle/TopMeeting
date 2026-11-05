@@ -10,6 +10,7 @@ class LocalSpeech {
     this.profiles = path.join(data, 'voice-profiles.json');
     this.onEvent = onEvent;
     this.pending = new Map();
+    this.identityWrites=Promise.resolve();
   }
 
   launch(mode, args = []) {
@@ -57,6 +58,7 @@ class LocalSpeech {
   }
 
   async start(meeting) {
+    await this.identityWrites;
     if(this.child || this.installing) throw new Error('本地语音引擎正忙');
     const ready=this.wait('ready');
     const child=this.launch('listen',[meeting.id,String(meeting.duration || 0)]);
@@ -96,7 +98,13 @@ class LocalSpeech {
     return received;
   }
 
-  async name(meeting, source, name, target) {
+  name(meeting, source, name, target) {
+    const operation=this.identityWrites.then(()=>this.writeIdentity(meeting,source,name,target));
+    this.identityWrites=operation.catch(()=>{});
+    return operation;
+  }
+
+  async writeIdentity(meeting, source, name, target) {
     if(this.child) return this.command('name',{source,name,target},'identity');
     const child=this.launch('name',[meeting.id,source,name,...(target?[target]:[])]);
     return new Promise((resolve,reject)=>{
