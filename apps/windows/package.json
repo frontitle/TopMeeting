@@ -1,16 +1,63 @@
 {
-  "name": "topmeeting-windows", "productName": "TopMeeting", "version": "0.12.0",
-  "description": "TopMeeting Windows preview — local meetings and configurable AI summaries",
-  "author": "TopMeeting contributors", "license": "Apache-2.0", "private": true,
+  "name": "topmeeting-windows",
+  "productName": "TopMeeting",
+  "version": "0.13.0",
+  "description": "TopMeeting Windows preview \u2014 local meetings and configurable AI summaries",
+  "author": "TopMeeting contributors",
+  "license": "Apache-2.0",
+  "private": true,
   "main": "src/main.cjs",
-  "scripts": {"start":"electron .", "test":"node --test test/*.test.cjs", "dist":"electron-builder --win nsis zip --x64 --publish never"},
-  "devDependencies": {"electron":"45.2.2", "electron-builder":"26.18.0"},
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test test/*.test.cjs",
+    "dist": "electron-builder --win nsis zip --x64 --publish never"
+  },
+  "devDependencies": {
+    "electron": "45.2.2",
+    "electron-builder": "26.18.0"
+  },
   "build": {
-    "appId":"org.topmeeting.windows", "asar":true, "directories":{"output":"release"},
-    "files":["src/**/*","package.json"],
-    "extraResources":[{"from":"../../LICENSE","to":"LICENSE"},{"from":"../../NOTICE","to":"NOTICE"},{"from":"../../THIRD_PARTY_NOTICES.md","to":"THIRD_PARTY_NOTICES.md"}],
-    "win":{"target":["nsis","zip"],"artifactName":"TopMeeting-${version}-windows-${arch}.${ext}"},
-    "nsis":{"oneClick":false,"perMachine":false,"allowToChangeInstallationDirectory":true,"artifactName":"TopMeeting-${version}-windows-${arch}-setup.${ext}"},
-    "publish":null
+    "appId": "org.topmeeting.windows",
+    "asar": true,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../../LICENSE",
+        "to": "LICENSE"
+      },
+      {
+        "from": "../../NOTICE",
+        "to": "NOTICE"
+      },
+      {
+        "from": "../../THIRD_PARTY_NOTICES.md",
+        "to": "THIRD_PARTY_NOTICES.md"
+      },
+      {
+        "from": "runtime",
+        "to": "speech"
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "zip"
+      ],
+      "artifactName": "TopMeeting-${version}-windows-${arch}.${ext}",
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "TopMeeting-${version}-windows-${arch}-setup.${ext}"
+    },
+    "publish": null
   }
 }

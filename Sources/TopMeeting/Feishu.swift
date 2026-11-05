@@ -34,6 +34,12 @@ struct FeishuCLI {
                     let file = URL(fileURLWithPath:arguments[index+1])
                     process.currentDirectoryURL = file.deletingLastPathComponent(); arguments[index+1] = file.lastPathComponent
                 }
+                if arguments.first != "profile" {
+                    guard let id = UserDefaults.standard.string(forKey:"feishuBoundAppID"), Self.validAppID(id) else {
+                        throw Gateway.error("请先绑定 TopMeeting 专用的飞书应用，再使用该应用登录。")
+                    }
+                    arguments = ["--profile","topmeeting-" + id] + arguments
+                }
                 process.arguments = arguments
                 if let input {
                     let file = directory.appendingPathComponent("input.xml")
@@ -69,6 +75,14 @@ struct FeishuCLI {
         let result = try object(data)
         guard result["ok"] as? Bool == true else { throw Gateway.error("飞书未返回成功回执，请核对云端。") }
         return result
+    }
+    static func validAppID(_ id: String) -> Bool {
+        id.range(of:#"^cli_[a-zA-Z0-9]{4,64}$"#,options:.regularExpression) != nil
+    }
+    func bindApplication(id: String,secret: String) async throws {
+        guard Self.validAppID(id), !secret.isEmpty else { throw Gateway.error("请填写有效的飞书 App ID 和 App Secret。") }
+        _ = try await run(["profile","add","--name","topmeeting-" + id,"--app-id",id,"--brand","feishu","--app-secret-stdin"],Data((secret+"\n").utf8))
+        UserDefaults.standard.set(id,forKey:"feishuBoundAppID")
     }
     func status() async throws -> Bool {
         let object = try Self.object(await run(["auth","status","--json","--verify"],nil))

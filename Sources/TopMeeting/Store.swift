@@ -454,6 +454,7 @@ import AVFoundation
                 try await capture.start(url:url,gain:Float(recognitionGain),device:microphoneID,localeIdentifier:speechLocale)
                 offset = current?.duration ?? 0; recordingClock.start(); recordingPaused = false; inputLevels = Array(repeating:-90,count:28); elapsed = offset; recording = true
                 update { $0.summaryState = "live"; $0.audioPath = url.path; $0.audioSegments = ($0.audioSegments ?? []) + [url.path] }
+                if feishuAutoSync && feishuReady { syncFeishu(final:false) }
                 timer = Timer.scheduledTimer(withTimeInterval:1, repeats:true) { [weak self] _ in
                     Task { @MainActor in
                         guard let self, !self.recordingPaused else { return }

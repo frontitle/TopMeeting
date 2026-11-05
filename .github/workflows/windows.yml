@@ -2,7 +2,7 @@ name: Windows client
 on:
   push:
     branches: [main]
-    paths: ['apps/windows/**', '.github/workflows/windows.yml', 'LICENSE', 'NOTICE', 'THIRD_PARTY_NOTICES.md']
+    paths: ['apps/windows/**', '.github/workflows/windows.yml', 'voice_engine/**', 'LICENSE', 'NOTICE', 'THIRD_PARTY_NOTICES.md']
   workflow_dispatch:
 permissions:
   contents: read
@@ -22,6 +22,25 @@ jobs:
           cache-dependency-path: apps/windows/package-lock.json
       - run: npm ci
       - run: npm test
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.13'
+      - name: Bundle isolated Python voice runtime
+        shell: pwsh
+        run: ./speech/build-runtime.ps1
+      - name: Verify offline recognition with a four-person Mandarin recording
+        shell: pwsh
+        run: |
+          $models = Join-Path $env:RUNNER_TEMP 'topmeeting-models'
+          $fixture = Join-Path $env:RUNNER_TEMP 'meeting.wav'
+          Invoke-WebRequest 'https://github.com/k2-fsa/sherpa-onnx/releases/download/speaker-segmentation-models/0-four-speakers-zh.wav' -OutFile $fixture
+          if ((Get-FileHash $fixture).Hash.ToLower() -ne 'bedf036caed208386c67b4ef4b11f83d74dd0d420b102163a1c33cd09cde7010') { throw 'Unexpected audio fixture' }
+          & ./runtime/python.exe ./runtime/worker.py install $models unused
+          if ($LASTEXITCODE -ne 0) { throw 'Model installation failed' }
+          & ./runtime/python.exe speech/replay.py ./runtime/python.exe runtime/worker.py $models $fixture
+          if ($LASTEXITCODE -ne 0) { throw 'Offline replay failed' }
+          "TOPMEETING_SMOKE_MODELS=$models" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "TOPMEETING_SMOKE_FIXTURE=$fixture" | Out-File -FilePath $env:GITHUB_ENV -Append
       - run: npm run dist
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
@@ -31,7 +50,7 @@ jobs:
           $result = Join-Path $env:TEMP 'topmeeting-smoke-result.txt'
           Remove-Item $result -ErrorAction SilentlyContinue
           $process = Start-Process -FilePath '.\release\win-unpacked\TopMeeting.exe' -ArgumentList '--smoke-test' -PassThru
-          if (-not $process.WaitForExit(60000)) { $process.Kill(); throw 'Packaged application timed out' }
+          if (-not $process.WaitForExit(120000)) { $process.Kill(); throw 'Packaged application timed out' }
           if ($process.ExitCode -ne 0) { throw "Application exited with $($process.ExitCode)" }
           if (-not (Test-Path $result)) { throw 'No smoke-test receipt' }
           if ((Get-Content $result -Raw) -ne 'PASS') { throw 'Smoke test failed' }

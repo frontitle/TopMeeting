@@ -45,7 +45,6 @@ extension MeetingStore {
         guard !feishuBusy.contains(id), let meeting = meetings.first(where: { $0.id == id }), meeting.deletedAt == nil else { return }
         guard feishuReady else { feishuStatus = "请先在连接设置中登录飞书"; return }
         guard meeting.feishu?.pending == nil else { feishuStatus = "上次写入结果待核对，请先打开飞书文档检查"; return }
-        guard !meeting.lines.filter({ $0.live != true }).isEmpty else { feishuStatus = "有稳定实录后即可同步"; return }
         feishuBusy.insert(id); defer { feishuBusy.remove(id) }
         let client = feishuClient
         var state = meeting.feishu ?? FeishuDocument(id:"",url:"")
@@ -60,6 +59,9 @@ extension MeetingStore {
                 try persist()
             }
             try stillActive()
+            guard final || meeting.lines.contains(where:{ $0.live != true }) else {
+                feishuStatus = "会议文档已创建"; return
+            }
             let content = FeishuCLI.content(meeting,final:final)
             if state.content != content {
                 state.pending = "追加会议记录"; state.pendingPayload = content; try persist()

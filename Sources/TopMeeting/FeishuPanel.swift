@@ -4,8 +4,23 @@ import CoreImage.CIFilterBuiltins
 
 struct FeishuSettings: View {
     @EnvironmentObject var store: MeetingStore
+    @InlineState private var appID = UserDefaults.standard.string(forKey:"feishuBoundAppID") ?? ""
+    @InlineState private var secret = ""
     var body: some View {
         Section(L10n.tr("飞书文档")) {
+            TextField("飞书应用 App ID",text:$appID)
+            SecureField("飞书应用 App Secret",text:$secret)
+            Button("绑定专用应用") {
+                let id = appID.trimmingCharacters(in:.whitespacesAndNewlines), value = secret
+                secret = ""; store.feishuChecking = true
+                Task { @MainActor in
+                    defer { store.feishuChecking = false }
+                    do { try await FeishuCLI().bindApplication(id:id,secret:value)
+                        store.feishuLoginURL = nil; store.feishuDeviceCode = nil; store.feishuReady = false
+                        store.feishuStatus = "已绑定应用 "+id+"，请登录并核对飞书授权页中的应用名称和账号。"
+                    } catch { store.feishuStatus = error.localizedDescription }
+                }
+            }.disabled(secret.isEmpty || !FeishuCLI.validAppID(appID) || store.feishuChecking)
             Text(L10n.tr(store.feishuStatus)).font(.caption).foregroundStyle(.secondary)
             HStack {
                 Button(L10n.tr("检查连接"),action:store.checkFeishu)

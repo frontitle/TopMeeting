@@ -31,3 +31,4 @@ recognition-terms.json
 
 apps/windows/release/
 *.webm
+apps/windows/runtime/
