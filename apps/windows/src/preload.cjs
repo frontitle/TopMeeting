@@ -2,6 +2,7 @@ const {contextBridge,ipcRenderer}=require('electron');
 contextBridge.exposeInMainWorld('api',{
  installModels:()=>ipcRenderer.invoke('install-models'), pcm:samples=>ipcRenderer.invoke('pcm',samples),
  overlay:(paused,duration)=>ipcRenderer.invoke('overlay-state',paused,duration),
+ nameSpeaker:(id,source,name)=>ipcRenderer.invoke('name-speaker',id,source,name),
  line:(id,lineId,patch)=>ipcRenderer.invoke('line',id,lineId,patch),addLine:id=>ipcRenderer.invoke('add-line',id),
  bindAccount:(id,settings)=>ipcRenderer.invoke('bind-account',id,settings),
  configureAccount:(id,action)=>ipcRenderer.invoke('configure-account',id,action),

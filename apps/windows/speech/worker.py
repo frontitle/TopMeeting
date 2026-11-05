@@ -27,25 +27,51 @@ class Session:
         self.offset = offset
         self.partial = ""
         self.turns = []
+        self.recent = []
+        self.seen = set()
+        self.roster = []
 
     def update_turns(self, update):
         if update:
-            self.turns = [t for t in self.turns if self.start - 2 <= t["end"] <= update["replaceFrom"]] + update["events"]
+            boundary = update["replaceFrom"]
+            self.turns = [dict(t,end=min(t["end"],boundary)) for t in self.turns
+                          if t["end"] > self.time-70 and t["start"] < boundary] + update["events"]
+            for turn in update["events"]:
+                self.seen.update(turn["speakerIDs"])
+            self.seen.update(c["id"] for c in self.voice.bank["clusters"])
+            ids = dict.fromkeys(self.voice.canonical(key) for key in sorted(self.seen) if key != "unknown")
+            named = {p["id"] for p in self.voice.profiles}
+            roster = [{"id":key,"name":self.voice.label(key),"named":key in named} for key in ids]
+            if roster != self.roster:
+                self.roster = roster
+                emit({"type":"roster","speakers":roster})
+            self.recent = [p for p in self.recent if p["end"] >= boundary]
+            for paragraph in self.recent:
+                assignment = self.speaker(paragraph["start"],paragraph["end"])
+                if assignment != paragraph["assignment"]:
+                    paragraph["assignment"] = assignment
+                    emit({"type":"attribution","start":paragraph["start"]+self.offset,**assignment})
 
     def speaker(self, start, end):
         scores = defaultdict(float)
         overlap = 0
+        simultaneous = defaultdict(float)
         for turn in self.turns:
             duration = max(0, min(end, turn["end"]) - max(start, turn["start"]))
             if turn["overlap"]:
                 overlap += duration
+                for identity in turn["speakerIDs"]:
+                    simultaneous[self.voice.canonical(identity)] += duration
             else:
                 for identity in turn["speakerIDs"]:
                     scores[self.voice.canonical(identity)] += duration
         best = max(scores, key=scores.get) if scores else "unknown"
         if scores.get(best, 0) < .25:
             best = "unknown"
-        return {"speakerID": best, "speaker": self.voice.label(best), "overlap": overlap >= .25}
+        contributors = [identity for identity in dict.fromkeys([best, *scores, *simultaneous])
+                        if identity != "unknown" and (identity == best or scores[identity] >= .65 or simultaneous[identity] >= .45)]
+        return {"speakerID": best, "speaker": self.voice.label(best), "overlap": overlap >= .25,
+                "voices": [{"id":identity, "name":self.voice.label(identity)} for identity in contributors]}
 
     def decode(self):
         while self.recognizer.is_ready(self.stream):
@@ -56,8 +82,9 @@ class Session:
         if text:
             if self.voice.total != self.voice.last_inference:
                 self.update_turns(self.voice.infer(self.voice.buffer, (self.voice.total-len(self.voice.buffer))/16000))
-            emit({"type":"final","text":text,"start":self.start+self.offset,"end":self.time+self.offset,
-                  **self.speaker(self.start, self.time)})
+            assignment = self.speaker(self.start,self.time)
+            self.recent.append({"start":self.start,"end":self.time,"assignment":assignment})
+            emit({"type":"final","text":text,"start":self.start+self.offset,"end":self.time+self.offset,**assignment})
         self.recognizer.reset(self.stream)
         self.start = self.time
         self.partial = ""
@@ -108,7 +135,10 @@ def main():
             emit({"type":"finished"})
             return
         if request["cmd"] == "name":
-            emit(session.voice.name_or_merge(args[0],request["source"],request["name"],target=request.get("target")))
+            try:
+                emit(session.voice.name_or_merge(args[0],request["source"],request["name"],target=request.get("target")))
+            except ValueError as error:
+                emit({"type":"identityError","message":str(error)})
         else:
             samples = np.frombuffer(base64.b64decode(request["pcm"],validate=True), dtype="<f4")
             if not 0 < len(samples) <= 16000 or not np.all(np.isfinite(samples)):

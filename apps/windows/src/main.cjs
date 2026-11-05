@@ -39,11 +39,21 @@ if(primaryInstance) app.whenReady().then(async()=>{
  speech=new LocalSpeech(process.resourcesPath,root,event=>{
    if(!active) return;
    if(event.type==='error') win.webContents.send('speech-error',event.message);
+   if(event.type==='roster' || event.type==='attribution'){
+     const m=meeting(active.id);
+     if(event.type==='roster')m.speakers=event.speakers;
+     else{
+       const row=m.lines.find(line=>line.recording===active.file && line.start===event.start);
+       if(!row || row.speakerLocked)return;
+       Object.assign(row,{speaker:event.speaker,speakerID:event.speakerID,voices:event.voices,overlap:event.overlap});
+     }
+     persist().then(()=>win.webContents.send('meeting-updated',m.id)).catch(error=>win.webContents.send('speech-error',error.message));
+   }
    if(event.type==='partial'||event.type==='final'){
      overlay.update({text:event.text,speaker:event.speaker});
      if(event.type==='final'){
        const m=meeting(active.id);
-       m.lines.push({id:crypto.randomUUID(),text:event.text,speaker:event.speaker,speakerID:event.speakerID,overlap:event.overlap,start:event.start,end:event.end});
+       m.lines.push({id:crypto.randomUUID(),text:event.text,recording:active.file,speaker:event.speaker,speakerID:event.speakerID,voices:event.voices,overlap:event.overlap,start:event.start,end:event.end});
        persist().then(()=>win.webContents.send('meeting-updated',m.id)).catch(error=>win.webContents.send('speech-error',error.message));
      }
    }
@@ -62,6 +72,42 @@ if(primaryInstance) app.whenReady().then(async()=>{
    overlay.update({level:Math.sqrt(power/samples.length)});
    await speech.command('audio',{pcm:Buffer.from(samples.buffer,samples.byteOffset,samples.byteLength).toString('base64')},'ack');
  });
+ async function renameIdentity(m,source,name){
+   if(active && active.id!==m.id)throw new Error('正在处理其他会议');
+   const targets=new Set();
+   for(const other of meetings){
+     for(const person of other.speakers||[]){
+       if(person.id!==source && person.name===name && (other.id===m.id || person.named))targets.add(person.id);
+     }
+   }
+   if(targets.size>1)throw new Error('有多个同名身份，请先赋予不同的姓名再选择');
+   const update=await speech.name(m,source,name,[...targets][0]);
+   function canonical(identity){
+     let key=identity;const seen=new Set();
+     while(update.mappings?.[key] && !seen.has(key)){seen.add(key);key=update.mappings[key];}
+     return key;
+   }
+   const profiles=new Set(update.profiles?.map(p=>p.id));
+   function relabel(people){
+     const unique=new Map();
+     for(const person of people||[]){
+       const id=canonical(person.id);
+       unique.set(id,{id,name:update.names?.[id]||person.name,named:profiles.has(id)});
+     }
+     return [...unique.values()];
+   }
+   m.speakers=relabel(m.speakers);
+   for(const row of m.lines){
+     if(row.voices)row.voices=relabel(row.voices);
+     const key=canonical(row.speakerID);
+     if(key && update.names?.[key]){row.speakerID=key;row.speaker=update.names[key];row.namedIdentity=profiles.has(key);}
+   }
+ }
+ bind('name-speaker',async(id,source,name)=>{
+   const m=meeting(id),clean=String(name).trim();
+   if(!clean || clean.length>60 || !m.speakers?.some(p=>p.id===source))throw new Error('说话人或姓名无效');
+   await renameIdentity(m,source,clean);await persist();return m;
+ });
  bind('line',async(id,lineId,patch)=>{
    const m=meeting(id),line=m.lines.find(l=>l.id===lineId);
    if(!line)throw new Error('实录已变化');
@@ -70,16 +116,12 @@ if(primaryInstance) app.whenReady().then(async()=>{
    else if(typeof patch.speaker==='string'){
      const name=patch.speaker.trim().slice(0,60);
      if(!name)throw new Error('请填写姓名');
-     if(line.speakerID && line.speakerID!=='unknown'){
-       if(active && active.id!==id)throw new Error('正在处理其他会议');
-       const match=[...m.lines,...meetings.flatMap(other=>other.id===id?[]:other.lines.filter(l=>l.namedIdentity))].find(l=>l.speaker===name && l.speakerID && l.speakerID!==line.speakerID && l.speakerID!=='unknown');
-       const update=await speech.name(m,line.speakerID,name,match?.speakerID);
-       for(const row of m.lines){
-         let key=row.speakerID;const seen=new Set();
-         while(update.mappings?.[key] && !seen.has(key)){seen.add(key);key=update.mappings[key];}
-         if(key && update.names?.[key]){row.speakerID=key;row.speaker=update.names[key];row.namedIdentity=update.profiles?.some(profile=>profile.id===key) || false;}
-       }
+     const source=patch.speakerID || line.speakerID;
+     if(source && source!==line.speakerID && !line.voices?.some(voice=>voice.id===source))throw new Error('说话人已更新，请重新选择');
+     if(source && source!=='unknown'){
+       await renameIdentity(m,source,name);
      }else line.speaker=name;
+     line.speakerLocked=true;
    }
    await persist();return m;
  });
@@ -121,6 +163,10 @@ if(primaryInstance) app.whenReady().then(async()=>{
      await togglePause();await togglePause();await finish();
      const saved=(await api.load()).meetings[0];
      if(!saved.lines.some(line=>Number.isFinite(line.start)&&line.text))throw Error('No local transcript from packaged microphone path');
+     if(!saved.speakers?.length)throw Error('Speaker roster missing');
+     document.querySelector('#people').click();
+     if(!document.querySelector('#peopleList input'))throw Error('Speaker management not available');
+     document.querySelector('#closePeople').click();
      return true;
    })()`);
  }

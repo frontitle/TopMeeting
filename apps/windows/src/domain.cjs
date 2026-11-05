@@ -7,7 +7,10 @@ function endpoint(base, suffix) {
   url.pathname += '/' + suffix; return url.href;
 }
 function summaryInput(meeting, config) {
-  const content = meeting.lines.map(l=>`${l.speaker || '未标记'}：${l.text}`).join('\n');
+  const content = meeting.lines.map(line=>{
+    const speakers=line.voices?.length ? line.voices.map(voice=>voice.name).join('、') : line.speaker || '未标记';
+    return `${speakers}${line.overlap?'（重叠发言）':''}：${line.text}`;
+  }).join('\n');
   if (!content.trim()) throw new Error('请先转写录音或添加实录');
   const system = config.language === 'en' ? 'Write meeting notes in English with sections Summary, Topics, Decisions, Action items, Open questions. Distinguish suggestions from decisions. Never invent owners, deadlines or facts.' : '请用中文生成结构化会议纪要，包含核心摘要、议题、明确决策、待办、待确认问题。区分建议与决定，不编造责任人、日期或事实。';
   const body = {model:config.model,stream:true,messages:[{role:'system',content:system},{role:'user',content:JSON.stringify({title:meeting.title,transcript:content,context:meeting.context || ''})}]};

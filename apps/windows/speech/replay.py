@@ -25,8 +25,15 @@ with tempfile.TemporaryDirectory() as data:
     events=[json.loads(line) for line in run.stdout.splitlines()]
     if run.returncode: raise RuntimeError([e for e in events if e["type"]=="error"] or run.stderr[-1000:])
     finals=[e for e in events if e['type']=='final']
+    for event in events:
+        if event['type']=='attribution':
+            row=next((f for f in finals if f['start']==event['start']),None)
+            if row:
+                for key in ['speaker','speakerID','voices','overlap']: row[key]=event[key]
+    roster=next(e['speakers'] for e in reversed(events) if e['type']=='roster')
     partials=sum(e['type']=='partial' for e in events)
     identities={e['speakerID'] for e in finals if e['speakerID']!='unknown'}
+    assert len(roster)>=2 and any(len(row["voices"])>1 for row in finals)
     assert partials and finals and events[-1]['type']=='finished'
     assert sum(e['type']=='ack' for e in events)==len(requests)-1
     bank=json.loads((Path(data)/'profiles.json').read_text())['sessions']['fixture']
@@ -37,4 +44,4 @@ with tempfile.TemporaryDirectory() as data:
     result=json.loads(labeled.stdout)
     assert result['type']=='identity' and any(p['name']=='Test speaker' for p in result['profiles'])
     print(json.dumps({"seconds":round(len(samples)/16000,1),"partialUpdates":partials,"finalParagraphs":len(finals),
-          "canonicalCandidates":len(bank['clusters']), "attributedIdentities":len(identities),"overlapParagraphs":sum(e['overlap'] for e in finals)}))
+          "canonicalCandidates":len(bank['clusters']), "rosterSize":len(roster),"dominantIdentities":len(identities),"paragraphParticipants":len({v["id"] for e in finals for v in e["voices"]}),"overlapParagraphs":sum(e['overlap'] for e in finals)}))

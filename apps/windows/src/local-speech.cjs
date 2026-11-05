@@ -63,6 +63,11 @@ class LocalSpeech {
     readline.createInterface({input:child.stdout}).on('line', line=>{
       try {
         const event=JSON.parse(line);
+        if(event.type==='identityError'){
+          this.pending.get('identity')?.reject(new Error(event.message));
+          this.pending.delete('identity');
+          return;
+        }
         if(event.type==='error') reason=event.message;
         const pending=this.pending.get(event.type);
         if(pending){this.pending.delete(event.type);pending.resolve(event);}

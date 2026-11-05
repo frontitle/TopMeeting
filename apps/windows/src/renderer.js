@@ -5,12 +5,21 @@ function clock(seconds){return `${Math.floor(seconds/60).toString().padStart(2,'
 async function action(fn){try{await fn();}catch(e){notice(e.message);}}
 async function reload(){state=await api.load();if(!selected)selected=state.meetings.find(m=>!m.deletedAt)?.id;render();}
 function render(){const m=current();
+$('people').textContent=(m?.speakers?.length||0)+' 位说话人';$('people').disabled=!m;
 const roster=$('knownSpeakers');roster.replaceChildren();
-const names=new Set(state.meetings.flatMap(meeting=>meeting.lines.map(line=>line.speaker)).filter(name=>name && !['未标记','未知说话人'].includes(name) && !/^说话人 ?\d+$/.test(name)));
+const names=new Set(state.meetings.flatMap(meeting=>[...meeting.lines.map(line=>line.speaker),...(meeting.speakers||[]).map(p=>p.name)]).filter(name=>name && !['未标记','未知说话人'].includes(name) && !/^说话人 ?\d+$/.test(name)));
 for(const value of names){const option=document.createElement('option');option.value=value;roster.append(option);}
 $('meetings').replaceChildren();const q=$('search').value.toLowerCase().trim();for(const item of state.meetings){if(!!item.deletedAt!==$('trash').checked)continue;const text=JSON.stringify([item.title,item.lines,item.notes]).toLowerCase();if(!q.split(/\s+/).every(t=>text.includes(t)))continue;const b=document.createElement('button');b.className=item.id===selected?'selected':'';b.append(document.createTextNode(item.title));const d=document.createElement('small');d.textContent=new Date(item.date).toLocaleString();b.append(d);b.disabled=!!recorder||busy;b.onclick=()=>{selected=item.id;render();};$('meetings').append(b);}
 $('title').value=m?.title||'';$('context').value=m?.context||'';$('meta').textContent=m?`${new Date(m.date).toLocaleDateString()} · ${m.lines.length} 段实录 · ${m.recordings.length} 段录音`:'';$('notes').textContent=m?.notes||'连接模型后，会议的重点与决策会呈现在这里。';$('time').textContent=clock((m?.duration||0)+elapsed);$('delete').textContent=m?.deletedAt?'恢复会议':'删除会议';$('recordings').replaceChildren();for(let i=0;i<(m?.recordings.length||0);i++){const o=document.createElement('option');o.value=i;o.textContent='录音 '+(i+1);$('recordings').append(o);}$('play').disabled=!m?.recordings.length||!!recorder;
-$('lines').replaceChildren();for(const line of m?.lines||[]){const card=document.createElement('div');card.className='line';const name=document.createElement('input');name.className='speaker';name.setAttribute('list','knownSpeakers');name.value=line.speaker;name.setAttribute('aria-label','说话人姓名');name.disabled=busy;const text=document.createElement('textarea');text.value=line.text;text.setAttribute('aria-label','实录文字');text.disabled=busy;const remove=document.createElement('button');remove.textContent='删除';remove.disabled=busy;name.onchange=()=>action(async()=>{try{await api.line(m.id,line.id,{speaker:name.value});}finally{await reload();}});text.onchange=()=>action(async()=>{await api.line(m.id,line.id,{text:text.value});await reload();});remove.onclick=()=>action(async()=>{await api.line(m.id,line.id,{remove:true});await reload();});if(line.overlap)card.append(document.createTextNode('重叠发言 · '));card.append(name,remove,text);$('lines').append(card);}
+$('lines').replaceChildren();for(const line of m?.lines||[]){const card=document.createElement('div');card.className='line';const name=document.createElement('input');name.className='speaker';name.setAttribute('list','knownSpeakers');name.value=line.speaker;name.setAttribute('aria-label','说话人姓名');name.disabled=busy;const text=document.createElement('textarea');text.value=line.text;text.setAttribute('aria-label','实录文字');text.disabled=busy;const remove=document.createElement('button');remove.textContent='删除';remove.disabled=busy;name.onchange=()=>action(async()=>{try{await api.line(m.id,line.id,{speaker:name.value});}finally{await reload();}});text.onchange=()=>action(async()=>{await api.line(m.id,line.id,{text:text.value});await reload();});remove.onclick=()=>action(async()=>{await api.line(m.id,line.id,{remove:true});await reload();});if(line.overlap)card.append(document.createTextNode('重叠发言 · '));card.append(name,remove);
+for(const voice of line.voices||[]){
+  if(voice.id===line.speakerID)continue;
+  const extra=document.createElement('input');
+  extra.className='speaker';extra.value=voice.name;extra.setAttribute('list','knownSpeakers');extra.setAttribute('aria-label','同段说话人');
+  extra.onchange=()=>action(async()=>{try{await api.line(m.id,line.id,{speaker:extra.value,speakerID:voice.id});}finally{await reload();}});
+  card.append(extra);
+}
+card.append(text);$('lines').append(card);}
 for(const id of ['summarize','add','export','delete'])$(id).disabled=!m||busy||!!recorder||(!!m.deletedAt&&id!=='delete');$('record').disabled=!m||busy||!!m.deletedAt;$('create').disabled=!!recorder||busy;$('settings').disabled=!!recorder||busy;$('title').disabled=!m||busy;$('context').disabled=!m||busy;if(window.renderDocLinks)renderDocLinks(m);}
 $('create').onclick=()=>action(async()=>{selected=(await api.create()).id;await reload();});$('search').oninput=render;$('trash').onchange=render;
 $('title').onchange=()=>action(async()=>{await api.edit(selected,{title:$('title').value});await reload();});$('context').onchange=()=>action(async()=>{await api.edit(selected,{context:$('context').value});await reload();});
@@ -22,3 +31,19 @@ $('settings').onclick=()=>{for(const [k,v]of Object.entries(state.config)){const
 window.addEventListener('beforeunload',e=>{if(recorder||busy){e.preventDefault();e.returnValue=false;}});action(reload);
 
 let audioURL=null;$('play').onclick=()=>action(async()=>{const bytes=await api.audio(selected,Number($('recordings').value));if(audioURL)URL.revokeObjectURL(audioURL);audioURL=URL.createObjectURL(new Blob([bytes],{type:'audio/webm'}));$('audio').src=audioURL;$('audio').hidden=false;await $('audio').play();});
+
+function renderPeople(){
+  $('peopleList').replaceChildren();
+  const m=current();if(!m)return;
+  for(const person of m.speakers||[]){
+    const field=document.createElement('input');field.value=person.name;field.setAttribute('list','knownSpeakers');field.setAttribute('aria-label','说话人姓名');
+    field.onchange=async()=>{
+      try{await api.nameSpeaker(m.id,person.id,field.value);await reload();renderPeople();}
+      catch(error){$('personMessage').textContent=error.message;}
+    };
+    $('peopleList').append(field);
+  }
+  if(!m.speakers?.length)$('peopleList').textContent='等待可靠的单人发言。';
+}
+$('people').onclick=()=>{$('personMessage').textContent='';renderPeople();$('peopleDialog').showModal();};
+$('closePeople').onclick=()=>$('peopleDialog').close();
