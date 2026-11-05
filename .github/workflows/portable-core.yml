@@ -13,4 +13,4 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
-      - run: node --test packages/core/test/core.test.js
+      - run: node --test packages/core/test/core.test.js packages/documents/test/accounts.test.cjs

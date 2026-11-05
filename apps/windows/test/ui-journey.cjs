@@ -30,7 +30,7 @@ const path=require('node:path'),assert=require('node:assert/strict');
  });
  await page.waitForSelector('#docHint:visible');await page.click('#connectDocs');await page.waitForSelector('#accountDialog[open]');await page.selectOption('#service','notion');assert.equal(await page.locator('#accountFields input').count(),2);await page.click('#closeAccounts');
  await page.screenshot({path:path.join(output,'workspace-light.png')});
- await page.emulateMedia({colorScheme:'dark'});await page.setViewportSize({width:1000,height:680});await page.screenshot({path:path.join(output,'workspace-dark.png')});
+ await page.emulateMedia({colorScheme:'dark'});await page.setViewportSize({width:1000,height:680});await page.evaluate(()=>new Promise(done=>requestAnimationFrame(()=>requestAnimationFrame(done))));await page.screenshot({animations:'disabled',path:path.join(output,'workspace-dark.png')});
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
  await page.click('#hideDocHint');await page.evaluate(()=>reload());assert.equal(await page.locator('#docHint').isVisible(),false);
  await page.click('#delete');await page.check('#trash');await page.click('#delete');await page.uncheck('#trash');await page.waitForFunction(()=>document.querySelector('#title').value==='产品体验复盘');
