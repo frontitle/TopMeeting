@@ -46,10 +46,16 @@ jobs:
           cd assets
           sha256sum --check SHA256SUMS.txt
           cd ..
-          gh release view windows-v0.14.0-preview.1 --json isDraft,targetCommitish > /tmp/draft.json
+          gh api "repos/$GH_REPO/contents/apps/windows/package.json?ref=$BUILD_SHA" --jq .content | base64 --decode > /tmp/package.json
+          version=$(python3 -c 'import json,re; v=json.load(open("/tmp/package.json"))["version"]; assert re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+",v); print(v)')
+          tag="windows-v${version}-preview.1"
+          setup="assets/TopMeeting-${version}-windows-x64-setup.exe"
+          zip="assets/TopMeeting-${version}-windows-x64.zip"
+          test -s "$setup" && test -s "$zip"
+          gh release view "$tag" --json isDraft,targetCommitish > /tmp/draft.json
           python3 - <<'PYDRAFT'
           import json, os
           d = json.load(open('/tmp/draft.json'))
           assert d['isDraft'] and d['targetCommitish'] == os.environ['BUILD_SHA']
           PYDRAFT
-          gh release upload windows-v0.14.0-preview.1 assets/*.exe assets/*.zip assets/SHA256SUMS.txt --clobber
+          gh release upload "$tag" "$setup" "$zip" assets/SHA256SUMS.txt --clobber
