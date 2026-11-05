@@ -1,11 +1,19 @@
 import Foundation
 
 extension MeetingStore {
+    func refreshFeishuIdentity() async throws {
+        var name: String?
+        if let cli = feishuClient as? FeishuCLI {
+            let user = try await cli.verifiedUser()
+            feishuReady = user.ready; name = user.name
+        } else { feishuReady = try await feishuClient.status() }
+        feishuStatus = feishuReady ? "飞书用户已连接" + (name.map { " · " + $0 } ?? "") : "请登录已绑定的飞书应用"
+    }
     func checkFeishu() {
         guard !feishuChecking else { return }; feishuChecking = true
         Task {
             defer { feishuChecking = false }
-            do { feishuReady = try await feishuClient.status(); feishuStatus = feishuReady ? "飞书用户身份已连接" : "需要登录飞书用户身份（不会使用机器人身份代写）" }
+            do { try await refreshFeishuIdentity() }
             catch { feishuReady = false; feishuStatus = error.localizedDescription }
         }
     }
@@ -21,7 +29,7 @@ extension MeetingStore {
         guard let code = feishuDeviceCode, !feishuChecking else { return }; feishuChecking = true
         Task {
             defer { feishuChecking = false; feishuDeviceCode = nil; feishuLoginURL = nil }
-            do { try await feishuClient.finishLogin(code:code); feishuReady = try await feishuClient.status(); feishuStatus = feishuReady ? "飞书用户身份已连接" : "尚未确认登录成功，请重新检查连接" }
+            do { try await feishuClient.finishLogin(code:code); try await refreshFeishuIdentity() }
             catch { feishuReady = false; feishuStatus = error.localizedDescription }
         }
     }

@@ -1,15 +1,11 @@
-Windows x64 预览版 / Windows x64 preview
+Windows x64 0.13.0 预览版
 
-下载 `TopMeeting-0.12.0-windows-x64-setup.exe` 安装；也可解压 ZIP，运行其中的 `TopMeeting.exe`。校验值见 `SHA256SUMS.txt`。
+下载 setup.exe 安装，或解压 ZIP 并运行 TopMeeting.exe。SHA256SUMS.txt 可用于校验。安装包尚未签名，Windows 可能提示未知发布者。
 
-已实现：麦克风录音、暂停/继续、原音播放、本地会议保存、搜索、实录与姓名编辑、删除恢复、Markdown 导出、OpenClaw 与兼容模型服务的流式总结。相同会议内容不重复总结，模型输出中断时保留旧纪要。
+首次使用，打开「设置与扩展 → 下载或检查语音模型」。之后可离线进行本地中英实时转写、自动声纹发现与匹配，无需付费转写服务。临时字幕进入悬浮窗，完整段落进入实录。支持暂停、继续、姓名标记、合并、原音回放及按需模型总结。
 
-语音转写为会后手动触发，需独立配置兼容 `audio/transcriptions` 的服务；会上传选中会议尚未转写的录音，每段上限 25 MB，服务可能独立计费。
+已接入飞书、Google Docs、钉钉文档、腾讯文档和 Notion 的绑定设置。绑定后开启「开始录音时创建会议文档」，录音开始时建档并在界面提供快捷入口。各平台需要自有应用、集成凭据或个人授权。第三方账号的真实云端写入需在完成授权后验收。
 
-此版本尚未移植 Mac 的本机实时转写、自动声纹识别、系统聆听浮窗、飞书和完整中英文界面。Mac 原生版源代码保留在同一仓库。两个客户端的数据暂不自动同步。
+Windows CI 包含公开四人中文录音回放、打包后的模拟麦克风输入与暂停/继续、音频保存及实录落定检查。多人归属与重叠检测有误差，请在实录中核对。当前 Windows 文档扩展提供建档和链接，macOS 飞书另有完整文档内容同步。
 
-验证：Windows GitHub Actions 构建；打包后的 EXE 启动、渲染界面、保存/编辑/删除/恢复会议和音频写入/读取检查；模型 URL、会话隔离、摘要去重及 SSE 截断回归。未进行真实麦克风、真实 AI 账号或实际 Windows 桌面人工验收。
-
-安装包尚未购买/配置代码签名证书，Windows 可能提示未知发布者。原创源码采用 Apache-2.0，第三方依赖遵循各自许可。
-
-构建来源：[Windows CI #41824680503](https://github.com/frontitle/TopMeeting/actions/runs/41824680503)，源码提交 `570d77d`。Portable core 的 Windows/macOS/Linux 检查均通过。
+[使用与账号配置](https://github.com/frontitle/TopMeeting/blob/main/apps/windows/README.md)

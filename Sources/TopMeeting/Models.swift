@@ -35,6 +35,12 @@ struct ChatMessage: Codable, Identifiable {
     var text: String
     var state = "complete"
 }
+struct MeetingDocumentLink: Codable {
+    var status: String
+    var url: String?
+    var detail: String?
+}
+
 struct Meeting: Codable, Identifiable {
     var id = UUID()
     var title = "未命名会议"
@@ -56,6 +62,7 @@ struct Meeting: Codable, Identifiable {
     var summaryLanguage: String?
     var summarizedAt: Date?
     var summaryFingerprint: String?
+    var documentLinks: [String:MeetingDocumentLink]?
     var feishu: FeishuDocument?
     var conversation: [ChatMessage] { messages ?? [] }
     var userClarifications: String {

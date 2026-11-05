@@ -20,10 +20,7 @@ struct ExtensionSettings: View {
                 Text(L10n.tr("凭据分别存入钥匙串，不随会议导出。")).font(.caption).foregroundStyle(.secondary)
             }
             FeishuSettings()
-            Section(L10n.tr("扩展能力")) {
-                Text(L10n.tr("当前可用：OpenClaw、兼容模型 API、飞书文档。"))
-                Text(L10n.tr("钉钉、Slack 和其他连接器将通过独立扩展接入，目前尚未实现。")).font(.caption).foregroundStyle(.secondary)
-            }
+            DocumentAccountSettings()
         }.formStyle(.grouped)
     }
 }

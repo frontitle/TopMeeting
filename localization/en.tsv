@@ -196,3 +196,15 @@ TopMeeting 实时聆听	TopMeeting Live Captions
 请打开授权链接，完成后点击“我已授权”	Open the authorization link, then click “I have authorized”
 尚未确认登录成功，请重新检查连接	Sign-in is not confirmed. Check the connection again.
 连接配置已保存，令牌存放于系统钥匙串。	Connection saved. Credentials are stored in Keychain.
+其他会议文档	Additional document services
+文档平台	Document service
+开始录音时创建会议文档	Create a document when recording starts
+解除绑定	Disconnect
+获取腾讯文档个人授权	Get Tencent Docs authorization
+绑定账号	Connect account
+正在等待授权	Waiting for authorization
+正在建档	Creating document
+请核对云端建档结果	Check whether the document was created
+已创建文档的链接	Existing document link
+关联	Link
+已核对未创建，重试	Confirmed absent, retry

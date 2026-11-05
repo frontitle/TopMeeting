@@ -13,7 +13,7 @@ struct FeishuDocument: Codable {
 struct FeishuCLI {
     typealias Runner = @Sendable ([String],Data?) async throws -> Data
     var run: Runner
-    init(executable: URL? = nil) {
+    init(executable: URL? = nil,boundAppID: String? = nil) {
         let url = executable ?? Self.executable
         run = { args,input in
             guard let url else { throw Gateway.error("飞书连接组件未安装，请重新构建客户端。") }
@@ -35,7 +35,7 @@ struct FeishuCLI {
                     process.currentDirectoryURL = file.deletingLastPathComponent(); arguments[index+1] = file.lastPathComponent
                 }
                 if arguments.first != "profile" {
-                    guard let id = UserDefaults.standard.string(forKey:"feishuBoundAppID"), Self.validAppID(id) else {
+                    guard let id = boundAppID ?? UserDefaults.standard.string(forKey:"feishuBoundAppID"), Self.validAppID(id) else {
                         throw Gateway.error("请先绑定 TopMeeting 专用的飞书应用，再使用该应用登录。")
                     }
                     arguments = ["--profile","topmeeting-" + id] + arguments
@@ -84,10 +84,14 @@ struct FeishuCLI {
         _ = try await run(["profile","add","--name","topmeeting-" + id,"--app-id",id,"--brand","feishu","--app-secret-stdin"],Data((secret+"\n").utf8))
         UserDefaults.standard.set(id,forKey:"feishuBoundAppID")
     }
-    func status() async throws -> Bool {
+    func verifiedUser() async throws -> (ready: Bool,name: String?) {
         let object = try Self.object(await run(["auth","status","--json","--verify"],nil))
         let user = (object["identities"] as? [String:Any])?["user"] as? [String:Any]
-        return user?["available"] as? Bool == true && user?["status"] as? String == "ready" && object["verified"] as? Bool != false
+        let ready = user?["available"] as? Bool == true && user?["status"] as? String == "ready" && object["verified"] as? Bool != false
+        return (ready,ready ? user?["userName"] as? String : nil)
+    }
+    func status() async throws -> Bool {
+        try await verifiedUser().ready
     }
     func login() async throws -> (URL,String) {
         let object = try Self.object(await run(["auth","login","--domain","docs","--domain","drive","--no-wait","--json"],nil))

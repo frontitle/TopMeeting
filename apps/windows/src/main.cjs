@@ -67,12 +67,12 @@ app.whenReady().then(async()=>{
      if(!name)throw new Error('请填写姓名');
      if(line.speakerID && line.speakerID!=='unknown'){
        if(active && active.id!==id)throw new Error('正在处理其他会议');
-       const match=m.lines.find(l=>l.speaker===name && l.speakerID && l.speakerID!==line.speakerID && l.speakerID!=='unknown');
+       const match=[...m.lines,...meetings.flatMap(other=>other.id===id?[]:other.lines.filter(l=>l.namedIdentity))].find(l=>l.speaker===name && l.speakerID && l.speakerID!==line.speakerID && l.speakerID!=='unknown');
        const update=await speech.name(m,line.speakerID,name,match?.speakerID);
        for(const row of m.lines){
          let key=row.speakerID;const seen=new Set();
          while(update.mappings?.[key] && !seen.has(key)){seen.add(key);key=update.mappings[key];}
-         if(key && update.names?.[key]){row.speakerID=key;row.speaker=update.names[key];}
+         if(key && update.names?.[key]){row.speakerID=key;row.speaker=update.names[key];row.namedIdentity=update.profiles?.some(profile=>profile.id===key) || false;}
        }
      }else line.speaker=name;
    }

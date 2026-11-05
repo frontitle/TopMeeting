@@ -31,5 +31,10 @@ with tempfile.TemporaryDirectory() as data:
     assert sum(e['type']=='ack' for e in events)==len(requests)-1
     bank=json.loads((Path(data)/'profiles.json').read_text())['sessions']['fixture']
     assert 2 <= len(bank['clusters']) <= 8, len(bank['clusters'])
+    first=next(iter(identities))
+    labeled=subprocess.run([runtime,worker,"name",models,str(Path(data)/'profiles.json'),"fixture",first,"Test speaker"],
+        capture_output=True,text=True,timeout=30,check=True)
+    result=json.loads(labeled.stdout)
+    assert result['type']=='identity' and any(p['name']=='Test speaker' for p in result['profiles'])
     print(json.dumps({"seconds":round(len(samples)/16000,1),"partialUpdates":partials,"finalParagraphs":len(finals),
           "canonicalCandidates":len(bank['clusters']), "attributedIdentities":len(identities),"overlapParagraphs":sum(e['overlap'] for e in finals)}))

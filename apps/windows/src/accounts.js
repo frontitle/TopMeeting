@@ -2,7 +2,7 @@ const providerFields={
   feishu:[['clientId','飞书 TopMeeting 应用 App ID'],['secret','App Secret','password']],
   google:[['clientId','Google 桌面应用 Client ID'],['secret','Client Secret','password']],
   notion:[['token','Notion 内部集成 Token','password'],['parent','已与集成共享的父页面 ID']],
-  ding:[['clientId','钉钉应用 AppKey'],['secret','AppSecret','password'],['space','知识库空间 ID'],['operator','操作人 Union ID'],['parent','父节点 ID（选填）']],
+  ding:[['clientId','钉钉组织应用 AppKey'],['secret','AppSecret','password'],['space','知识库空间 ID'],['operator','操作人 Union ID'],['parent','父节点 ID（选填）']],
   tencent:[['token','腾讯文档个人 MCP Token','password']]
 };
 function fields(){

@@ -41,6 +41,9 @@ import AVFoundation
     @Published var rememberedPeople: [VoiceProfile] = []
     @Published var savedTerms: [TermCorrection] = []
     @Published var correctionStatus = ""
+    @Published var documentLabels = UserDefaults.standard.dictionary(forKey:"documentLabels") as? [String:String] ?? [:]
+    @Published var documentAutomatic = UserDefaults.standard.dictionary(forKey:"documentAutomatic") as? [String:Bool] ?? [:]
+    @Published var documentPending = Set<String>()
     @Published var feishuReady = false
     @Published var feishuChecking = false
     @Published var feishuStatus = "飞书尚未连接"
@@ -454,7 +457,15 @@ import AVFoundation
                 try await capture.start(url:url,gain:Float(recognitionGain),device:microphoneID,localeIdentifier:speechLocale)
                 offset = current?.duration ?? 0; recordingClock.start(); recordingPaused = false; inputLevels = Array(repeating:-90,count:28); elapsed = offset; recording = true
                 update { $0.summaryState = "live"; $0.audioPath = url.path; $0.audioSegments = ($0.audioSegments ?? []) + [url.path] }
-                if feishuAutoSync && feishuReady { syncFeishu(final:false) }
+                if let id = selected { startDocumentLinks(id:id) }
+                if feishuAutoSync, let id = selected {
+                    Task {
+                        do { feishuReady = try await feishuClient.status()
+                            if feishuReady { await performFeishuSync(id:id,final:false) }
+                            else { feishuStatus = "请先登录已绑定的飞书应用" }
+                        } catch { feishuStatus = error.localizedDescription }
+                    }
+                }
                 timer = Timer.scheduledTimer(withTimeInterval:1, repeats:true) { [weak self] _ in
                     Task { @MainActor in
                         guard let self, !self.recordingPaused else { return }

@@ -1,25 +1,29 @@
-# TopMeeting Windows preview 0.12.0
+# TopMeeting Windows 0.13.0 preview
 
-Windows x64 preview, built with Electron. This is a separate client, not a recompiled Swift application.
+Windows x64 客户端在本机完成中英实时转写、声纹发现与重叠检测。安装后打开「设置与扩展 → 下载或检查语音模型」。约 220 MB 的模型从上游下载并验证 SHA-256，之后可离线开会，无需转写 API Key。首次安装需要访问 Hugging Face 与 GitHub Releases。安装包包含 Python 运行时。
 
-Implemented: microphone recording with pause/resume, original WebM/Opus files, local meeting persistence, title/transcript/context editing, manual speaker names, search, deletion/restoration, Markdown export, remote OpenClaw and OpenAI-compatible streamed summaries with unchanged-input deduplication. Interrupted model responses preserve the previous summary. Credentials are encrypted with Electron safeStorage (Windows DPAPI). Each recording chunk is saved every five seconds.
+开始录音后会出现系统悬浮窗。顶部可拖动，双击字幕回到主窗口，右下角可以暂停和继续。临时字幕在浮窗中更新，定稿段落进入实录。点击说话人名字输入或选择已有人员，可靠单人样本用于建立声纹。选择相同姓名可合并重复身份。自动归属会有延迟，低置信度显示未知；重叠标记描述混合语音，无法分离每个人的原话。
 
-Optional post-meeting transcription uses a configured `audio/transcriptions` service. Audio is uploaded only when the user clicks Transcribe. The preview enforces a 25 MB limit per recording and does not promise subscription-covered transcription. Provider quotas and charges are separate from OpenClaw summaries.
+原音保存在本机，可暂停、播放，会议支持搜索、删除恢复和 Markdown 导出。模型总结仍由用户配置的 OpenClaw 或兼容 API 提供。录音结束后，已连接的总结服务会处理本场实录。摘要相同输入去重，失败保留旧版本。
 
-Not yet ported: Apple Speech local/live transcription, automatic voiceprint identification and merging, overlay window, Feishu delivery and the complete bilingual UI. UI is currently Chinese; summary output supports Chinese/English. The macOS native application remains unchanged. Meeting data is local to this Windows client; no automatic Mac/Windows sync or database interchange is provided.
+## 会议文档
 
-## Build
+在「设置与扩展 → 管理绑定账号」中选择平台，绑定后勾选「开始录音时创建会议文档」。录音开始后按平台保存云端创建回执，主界面显示快捷链接。遇到超时或中断，先核对云端，关联已有链接或明确允许重试。当前 Windows 文档扩展交付建档与链接，macOS 的飞书扩展还保留正文、附件和会后画板同步。
 
-```sh
-npm ci
-npm test
-npm run dist
-```
+| 平台 | 绑定方式 |
+|---|---|
+| 飞书 | 配置自己的飞书应用 App ID、Secret，在开放平台登记回调 `http://127.0.0.1:39427/callback`，开放用户文档写入权限。在系统浏览器授权，界面显示返回的用户名称。 |
+| Google Docs | 配置启用 Docs API 的桌面 OAuth 客户端，浏览器选择 Google 账号，授权创建本应用文档。 |
+| Notion | 输入内部集成 Token 和已共享给集成的父页面 ID，集成需具备新增内容权限。 |
+| 钉钉文档 | 配置组织应用 AppKey/Secret、知识库空间、操作人 Union ID，按需填写父节点。应用需具备对应知识库写权限。 |
+| 腾讯文档 | 在腾讯文档个人授权页获取 MCP Token，验证可用建档工具后绑定。 |
 
-Run packaging on Windows. Artifacts: `release/TopMeeting-0.12.0-windows-x64-setup.exe` and a ZIP containing the unpacked client. GitHub Actions launches the packaged executable and checks its renderer/main storage bridge with synthetic data. This is not a physical microphone or Windows SmartScreen acceptance test.
+凭据由 Windows 系统加密保存。真实账号的授权与云端建档需要在对应租户中验收。会议数据和声纹保存在 Electron 的用户数据目录。
 
-Installer is per-user, requires no administrator privilege and is currently unsigned. No code-signing certificate is configured; Windows may display an unknown-publisher prompt. The release is a prerelease, not feature parity with macOS.
+## 开发与验证
 
-Data uses Electron's per-user application data directory. Plaintext meeting files and recordings remain on the device; model configuration is encrypted in `credentials.bin`. Do not include these in bug reports. Keeping a failed recording preserves recoverable chunks; re-opening the application does not silently upload recordings.
+使用 Windows x64、Node 22 和 Python 3.13。先执行 `npm ci`、`npm test`，再执行 PowerShell 脚本 `speech/build-runtime.ps1` 和 `npm run dist`。输出每用户安装包与 ZIP。安装包暂未做 Authenticode 签名。
 
-Electron/Chromium/Node and electron-builder retain their upstream licenses. The ZIP includes Electron's `LICENSE` and `LICENSES.chromium.html`; TopMeeting's Apache-2.0 license and notices are under resources.
+CI 使用公开的 56.9 秒四人中文录音验证本地 ASR 与声纹输出，再启动打包后的 EXE，将录音作为 Chromium 测试麦克风输入检查录音、暂停、继续和定稿保存。此测试不能代替现场麦克风或远场识别准确率评估。
+
+语音识别采用 [sherpa-onnx 流式中英模型](https://k2-fsa.github.io/sherpa/onnx/pretrained_models/online-transducer/zipformer-transducer-models.html)。声纹算法、权重来源与许可见 [第三方说明](../../voice_engine/THIRD_PARTY.md)。模型权重随用户首次设置从上游下载。Electron、Chromium、Python 与依赖遵循各自的发行许可。

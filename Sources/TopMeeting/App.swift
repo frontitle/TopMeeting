@@ -306,6 +306,7 @@ struct Workspace: View {
                     }
                 }.frame(maxWidth:.infinity,alignment:.leading)
             }
+            MeetingDocumentLinks(meeting:m)
             FeishuMeetingPanel(meeting:m)
             Divider()
             HStack {

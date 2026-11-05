@@ -194,12 +194,13 @@ actor FeishuMock {
         let fakeProgram = """
         #!/usr/bin/env python3
         import json,os,sys
-        print(json.dumps({'ok':True,'input':sys.stdin.read() if '--content' in sys.argv else '', 'file_exists':os.path.isfile(sys.argv[sys.argv.index('--file')+1]) if '--file' in sys.argv else False}))
+        print(json.dumps({'ok':True,'args':sys.argv[1:],'input':sys.stdin.read() if '--content' in sys.argv else '', 'file_exists':os.path.isfile(sys.argv[sys.argv.index('--file')+1]) if '--file' in sys.argv else False}))
         """
         try Data(fakeProgram.utf8).write(to:fakeCLI)
         try FileManager.default.setAttributes([.posixPermissions:0o700],ofItemAtPath:fakeCLI.path)
-        let nativeCLI = FeishuCLI(executable:fakeCLI)
+        let nativeCLI = FeishuCLI(executable:fakeCLI,boundAppID:"cli_fixture")
         let stdinProbe = try FeishuCLI.receipt(await nativeCLI.run(["--content","-"],Data("会议<&>\n第二行".utf8)))
+        try check(Array(((stdinProbe["args"] as? [String]) ?? []).prefix(2)) == ["--profile","topmeeting-cli_fixture"],"Feishu command escaped the chosen app profile")
         try check(stdinProbe["input"] as? String == "会议<&>\n第二行","Native CLI stdin lost Unicode or newlines")
         let pathProbe = root.appendingPathComponent("附件 含空格.caf"); try Data([1]).write(to:pathProbe)
         let fileProbe = try FeishuCLI.receipt(await nativeCLI.run(["--file",pathProbe.path],nil))

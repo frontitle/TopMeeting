@@ -9,7 +9,7 @@ const services = {
   tencent: { name:'腾讯文档', hosts:['docs.qq.com'] }
 };
 const oauth = {
-  google:{authorize:'https://accounts.google.com/o/oauth2/v2/auth',token:'https://oauth2.googleapis.com/token',scope:'https://www.googleapis.com/auth/drive.file'},
+  google:{authorize:'https://accounts.google.com/o/oauth2/v2/auth',token:'https://oauth2.googleapis.com/token',scope:'openid email https://www.googleapis.com/auth/drive.file'},
   feishu:{authorize:'https://accounts.feishu.cn/open-apis/authen/v1/authorize',token:'https://open.feishu.cn/open-apis/authen/v2/oauth/token',scope:'docx:document offline_access'}
 };
 function safeLink(provider, value){
@@ -52,7 +52,7 @@ async function authorize(id, account, open){
   try {
     const params={client_id:account.clientId,response_type:'code',redirect_uri:redirect,state,scope:spec.scope,
       code_challenge:crypto.createHash('sha256').update(verifier).digest('base64url'),code_challenge_method:'S256'};
-    if(id==='google')Object.assign(params,{access_type:'offline',prompt:'consent'});
+    if(id==='google')Object.assign(params,{access_type:'offline',prompt:'select_account consent'});
     await open(spec.authorize+'?'+new URLSearchParams(params));
     return await exchange(id,{client_id:account.clientId,client_secret:account.secret||'',grant_type:'authorization_code',
       code:await code,redirect_uri:redirect,code_verifier:verifier});
@@ -114,7 +114,10 @@ async function bindAccount(id,settings,open){
     if(id==='feishu'){
       const user=await json('https://open.feishu.cn/open-apis/authen/v1/user_info',{headers:bearer(account.token)});
       account.label=user.data?.name||account.clientId;
-    }else account.label=account.clientId;
+    }else {
+      const user=await json('https://openidconnect.googleapis.com/v1/userinfo',{headers:bearer(account.token)});
+      account.label=user.email||account.clientId;
+    }
   }else if(id==='notion'){
     if(!account.parent)throw new Error('请填写已共享给集成的父页面 ID');
     const me=await json('https://api.notion.com/v1/users/me',{headers:{...bearer(account.token),'Notion-Version':'2022-06-28'}});

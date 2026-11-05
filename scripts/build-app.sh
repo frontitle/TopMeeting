@@ -5,6 +5,9 @@ swift build -c release
 APP="$PWD/dist/TopMeeting.app"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp LICENSE NOTICE THIRD_PARTY_NOTICES.md "$APP/Contents/Resources/"
+mkdir -p "$APP/Contents/Resources/DocumentsRuntime"
+cp -L "$(command -v node)" "$APP/Contents/Resources/DocumentsRuntime/node"
+cp packages/documents/macos-bridge.cjs apps/windows/src/document-services.cjs "$APP/Contents/Resources/DocumentsRuntime/"
 ICONSET="$PWD/.build/TopMeeting.iconset"
 mkdir -p "$ICONSET"
 swift scripts/build-icon.swift "$ICONSET/icon_512x512@2x.png"
@@ -43,8 +46,8 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 <key>CFBundleIdentifier</key><string>com.topmeeting.mac</string>
 <key>CFBundleExecutable</key><string>TopMeeting</string>
 <key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleShortVersionString</key><string>0.11.0</string>
-<key>CFBundleVersion</key><string>17</string>
+<key>CFBundleShortVersionString</key><string>0.13.0</string>
+<key>CFBundleVersion</key><string>18</string>
 <key>LSMinimumSystemVersion</key><string>15.0</string>
 <key>NSMicrophoneUsageDescription</key><string>录制会议声音，并在本机生成会议实录。</string>
 <key>NSSpeechRecognitionUsageDescription</key><string>使用本机语音识别生成实时字幕。</string>
