@@ -1,6 +1,7 @@
 """Real-speech regression. Public human recordings + existing app microphone files.
 No synthetic speech. The overlap control is an explicitly mixed human-recording fixture.
 """
+import os
 import copy
 import uuid
 import json
@@ -88,7 +89,7 @@ with tempfile.TemporaryDirectory() as tmp:
     report['checks'].append({'test':'mixed audio uses only confident single-speaker frames for candidate collection','candidateSamples':clean_samples,'limitation':'Neural overlap misses can still contaminate candidates; human-confirmed merges use additional outlier checks.'})
     # Private recordings stay local; do not expose speech or build named profiles from them.
     report['appRecordings'] = []
-    for path in sorted((Path.home()/'Library/Application Support/TopMeeting').glob('*.caf')):
+    for path in ([] if os.environ.get('TOPMEETING_PUBLIC_FIXTURES_ONLY')=='1' else sorted((Path.home()/'Library/Application Support/TopMeeting').glob('*.caf'))):
         e.reset('private-diagnostic-'+path.stem); samples = audio(path); timeline = []; times = []
         for end in range(2*RATE,len(samples)+2*RATE,2*RATE):
             end = min(end,len(samples)); start = max(0,end-e.window)

@@ -208,3 +208,12 @@ TopMeeting 实时聆听	TopMeeting Live Captions
 已创建文档的链接	Existing document link
 关联	Link
 已核对未创建，重试	Confirmed absent, retry
+开始第一场会议	Start your first meeting
+点击左侧「新建会议」开始。	Choose New meeting in the sidebar to begin.
+完整发言会自动进入实录。	Finalized speech will appear here.
+点击开始录音，首次使用需允许麦克风和语音识别。	Start recording. The first time, allow microphone and speech recognition access.
+在扩展中连接模型，即可生成纪要。	Connect a model in Extensions to generate notes.
+会议文档	Meeting document
+连接账号，下次开会时自动建档。	Connect an account to create a document when your next meeting starts.
+连接文档	Connect documents
+不再提示会议文档	Dismiss document suggestion

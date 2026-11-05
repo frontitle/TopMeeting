@@ -4,6 +4,7 @@ import SwiftUI
     @MainActor static func main() {
         let app = NSApplication.shared
         app.setActivationPolicy(.accessory)
+        app.applicationIconImage = NSImage(contentsOfFile:FileManager.default.currentDirectoryPath+"/apps/windows/src/logo.png")
         let dark = CommandLine.arguments.contains("dark")
         app.appearance = NSAppearance(named:dark ? .darkAqua : .aqua)
         let picker = CommandLine.arguments.contains("picker")

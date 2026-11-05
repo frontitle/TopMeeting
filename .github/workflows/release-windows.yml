@@ -46,4 +46,4 @@ jobs:
           cd assets
           sha256sum --check SHA256SUMS.txt
           cd ..
-          gh release create windows-v0.13.0-preview.1 assets/*.exe assets/*.zip assets/SHA256SUMS.txt assets/preview.png --draft --prerelease --target "$BUILD_SHA" --title "TopMeeting Windows 0.13.0 Preview 1" --notes-file docs/WINDOWS-PREVIEW-RELEASE.md
+          gh release create windows-v0.14.0-preview.1 assets/*.exe assets/*.zip assets/SHA256SUMS.txt assets/preview.png --draft --prerelease --target "$BUILD_SHA" --title "TopMeeting Windows 0.14.0 Preview 1" --notes-file docs/WINDOWS-PREVIEW-RELEASE.md

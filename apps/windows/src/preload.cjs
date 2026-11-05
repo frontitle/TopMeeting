@@ -1,5 +1,6 @@
 const {contextBridge,ipcRenderer}=require('electron');
 contextBridge.exposeInMainWorld('api',{
+ checkModels:()=>ipcRenderer.invoke('check-models'),onModelProgress:handler=>ipcRenderer.on('model-progress',(_,count,total)=>handler(count,total)),
  installModels:()=>ipcRenderer.invoke('install-models'), pcm:samples=>ipcRenderer.invoke('pcm',samples),
  overlay:(paused,duration)=>ipcRenderer.invoke('overlay-state',paused,duration),
  nameSpeaker:(id,source,name)=>ipcRenderer.invoke('name-speaker',id,source,name),

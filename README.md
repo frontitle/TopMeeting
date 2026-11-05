@@ -2,11 +2,11 @@
 
 [English](README.en.md) · [贡献指南](CONTRIBUTING.md) · [架构](docs/ARCHITECTURE.md)
 
-面向多人会议的原生 macOS 会议助手。会议录音、声纹和实录保存在本机；通过可配置的模型服务生成结构化纪要。当前开发版本 **0.13.0**，项目原创代码采用 **Apache-2.0**。
+面向多人会议的原生 macOS 会议助手。会议录音、声纹和实录保存在本机；通过可配置的模型服务生成结构化纪要。当前开发版本 **0.14.0**，项目原创代码采用 **Apache-2.0**。
 
 ## Windows 预览版下载
 
-[Windows x64 安装包与 ZIP](https://github.com/frontitle/TopMeeting/releases/tag/windows-v0.13.0-preview.1)。首次下载模型后可离线实时转写、自动匹配声纹。悬浮窗支持暂停和继续。飞书、钉钉、腾讯文档、Google Docs 和 Notion 可在开会时建档并提供链接。详见 [Windows 能力说明](apps/windows/README.md)。
+[Windows x64 安装包与 ZIP](https://github.com/frontitle/TopMeeting/releases/tag/windows-v0.14.0-preview.1)。首次下载模型后可离线实时转写、自动匹配声纹。悬浮窗支持暂停和继续。飞书、钉钉、腾讯文档、Google Docs 和 Notion 可在开会时建档并提供链接。详见 [Windows 能力说明](apps/windows/README.md)。
 
 ## 当前能力
 
@@ -55,7 +55,7 @@ TOPMEETING_UI_LANGUAGE=en ./scripts/preview-workspace.sh /tmp/topmeeting-english
 
 ## 跨平台与后续范围
 
-现有完整客户端为 macOS；新增 [Windows 0.13.0 预览客户端](apps/windows/README.md)，支持本地流式转写、声纹和文档账号连接。`packages/core` 提供不依赖平台的搜索、转写差异与带来源校验的纪要补丁基础，配有 Windows/macOS/Linux CI 配置；尚未替代原生 Swift 业务层。扩展清单定义位于 `schemas/`。
+现有完整客户端为 macOS；新增 [Windows 0.14.0 预览客户端](apps/windows/README.md)，支持本地流式转写、声纹和文档账号连接。`packages/core` 提供不依赖平台的搜索、转写差异与带来源校验的纪要补丁基础，配有 Windows/macOS/Linux CI 配置；尚未替代原生 Swift 业务层。扩展清单定义位于 `schemas/`。
 
 Windows 功能补齐、Web 客户端、Slack 连接器、SQLite 全文索引和项目分类、自动增量实时总结仍是后续工作。系统音频采集、多人重叠语音分离、签名公证和自动更新也尚未实现。详见 [产品路线](docs/PRODUCT-ROADMAP.zh-CN.md)。
 

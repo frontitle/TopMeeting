@@ -22,9 +22,12 @@ jobs:
           cache-dependency-path: apps/windows/package-lock.json
       - run: npm ci
       - run: npm test
+      - name: Check first-use flows, retry, accessibility states and dark layout
+        run: node test/ui-journey.cjs
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: '3.13'
+      - run: python speech/test_install.py
       - name: Bundle isolated Python voice runtime
         shell: pwsh
         run: ./speech/build-runtime.ps1

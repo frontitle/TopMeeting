@@ -21,6 +21,18 @@ class LocalSpeech {
     return child;
   }
 
+  check() {
+    const child=this.launch('check');
+    return new Promise((resolve,reject)=>{
+      let ready;
+      readline.createInterface({input:child.stdout}).on('line',line=>{
+        try { const event=JSON.parse(line); if(event.type==='modelStatus')ready=event.ready; } catch {}
+      });
+      child.once('error',reject);
+      child.once('close',code=>code===0 && typeof ready==='boolean' ? resolve(ready) : reject(new Error('无法检查本地语音组件，请修复安装或先只录音')));
+    });
+  }
+
   async install() {
     if (this.installing) return this.installing;
     if (this.child) throw new Error('请在会议结束后安装模型');
@@ -28,7 +40,7 @@ class LocalSpeech {
     this.installing = new Promise((resolve, reject) => {
       let reason = '';
       readline.createInterface({input:child.stdout}).on('line', line => {
-        try { const event=JSON.parse(line); if(event.type==='error') reason=event.message; } catch {}
+        try { const event=JSON.parse(line); if(event.type==='error') reason=event.message; if(event.type==='modelProgress')this.onEvent(event); } catch {}
       });
       child.once('error', reject);
       child.once('close', code => code===0 ? resolve() : reject(new Error(reason || '模型安装失败，请检查网络并重试')));

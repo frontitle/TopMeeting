@@ -24,9 +24,10 @@ def valid(path, digest):
     with path.open("rb") as source:
         return hashlib.file_digest(source, "sha256").hexdigest() == digest
 
-def install(root):
+def install(root, progress=lambda count,total: None):
     root.mkdir(parents=True, exist_ok=True)
-    for name, (digest, url) in FILES.items():
+    for count,(name,(digest,url)) in enumerate(FILES.items()):
+        progress(count,len(FILES))
         target = root / name
         if valid(target, digest):
             continue
@@ -48,3 +49,4 @@ def install(root):
             if not valid(downloaded, digest):
                 raise ValueError("Model checksum mismatch: " + name)
             downloaded.replace(target)
+    progress(len(FILES),len(FILES))

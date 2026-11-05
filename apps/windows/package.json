@@ -1,8 +1,8 @@
 {
   "name": "topmeeting-windows",
   "productName": "TopMeeting",
-  "version": "0.13.0",
-  "description": "TopMeeting Windows preview \u2014 local meetings and configurable AI summaries",
+  "version": "0.14.0",
+  "description": "TopMeeting Windows preview — local meetings and configurable AI summaries",
   "author": "TopMeeting contributors",
   "license": "Apache-2.0",
   "private": true,
@@ -14,7 +14,8 @@
   },
   "devDependencies": {
     "electron": "45.2.2",
-    "electron-builder": "26.18.0"
+    "electron-builder": "26.18.0",
+    "playwright-core": "1.64.1"
   },
   "build": {
     "appId": "org.topmeeting.windows",

@@ -113,8 +113,11 @@ class Session:
 def main():
     mode, directory, profiles, *args = sys.argv[1:]
     root = Path(directory)
+    if mode == "check":
+        emit({"type":"modelStatus","ready":all(valid(root/name,digest) for name,(digest,_) in FILES.items())})
+        return
     if mode == "install":
-        install(root)
+        install(root, lambda count,total: emit({"type":"modelProgress","count":count,"total":total}))
         return
     if not all(valid(root/name,digest) for name,(digest,_) in FILES.items()):
         raise ValueError("请先在设置中下载或修复本地语音模型")

@@ -2,11 +2,11 @@
 
 [简体中文](README.md) · [Contributing](CONTRIBUTING.md) · [Architecture](docs/ARCHITECTURE.md)
 
-A native macOS meeting assistant with local recordings, live transcription, speaker identification, editable transcripts and structured summaries. Original project code is licensed under Apache-2.0. Current development version: **0.13.0**.
+A native macOS meeting assistant with local recordings, live transcription, speaker identification, editable transcripts and structured summaries. Original project code is licensed under Apache-2.0. Current development version: **0.14.0**.
 
 ## Windows preview
 
-[Download the Windows x64 installer or ZIP](https://github.com/frontitle/TopMeeting/releases/tag/windows-v0.13.0-preview.1). Install the speech models once for offline live captions and speaker identification. A floating listening window supports pause/resume. Bind Feishu, Google Docs, Notion, DingTalk or Tencent Docs to create a meeting document when recording starts. See [Windows scope](apps/windows/README.md).
+[Download the Windows x64 installer or ZIP](https://github.com/frontitle/TopMeeting/releases/tag/windows-v0.14.0-preview.1). Install the speech models once for offline live captions and speaker identification. A floating listening window supports pause/resume. Bind Feishu, Google Docs, Notion, DingTalk or Tencent Docs to create a meeting document when recording starts. See [Windows scope](apps/windows/README.md).
 
 ## Features
 
@@ -40,6 +40,6 @@ Meeting data lives in `~/Library/Application Support/TopMeeting/`. Summary/chat 
 
 ## Platform status
 
-The native macOS client is joined by a [Windows 0.13.0 preview](apps/windows/README.md) with local live transcription, voiceprints, a floating listening window and document account integrations. `packages/core` contains portable search, transcript-delta and evidence-checked summary-patch primitives, with a Windows/macOS/Linux CI configuration. It does not yet replace native Swift business logic. Windows feature parity, a Web client, Slack connectors, automatic incremental summaries, project categories and indexed search are planned. Feishu cloud delivery still needs live acceptance testing.
+The native macOS client is joined by a [Windows 0.14.0 preview](apps/windows/README.md) with local live transcription, voiceprints, a floating listening window and document account integrations. `packages/core` contains portable search, transcript-delta and evidence-checked summary-patch primitives, with a Windows/macOS/Linux CI configuration. It does not yet replace native Swift business logic. Windows feature parity, a Web client, Slack connectors, automatic incremental summaries, project categories and indexed search are planned. Feishu cloud delivery still needs live acceptance testing.
 
 See [Architecture](docs/ARCHITECTURE.md), [Roadmap](docs/PRODUCT-ROADMAP.zh-CN.md), [LICENSE](LICENSE) and [NOTICE](NOTICE). Third-party code and model assets retain their own licenses.

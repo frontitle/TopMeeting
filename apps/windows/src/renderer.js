@@ -3,14 +3,37 @@ const current=()=>state.meetings.find(m=>m.id===selected);
 function notice(text){$('notice').textContent=text;}
 function clock(seconds){return `${Math.floor(seconds/60).toString().padStart(2,'0')}:${Math.floor(seconds%60).toString().padStart(2,'0')}`;}
 async function action(fn){try{await fn();}catch(e){notice(e.message);}}
-async function reload(){state=await api.load();if(!selected)selected=state.meetings.find(m=>!m.deletedAt)?.id;render();}
+async function reload(){state=await api.load();if(!state.meetings.some(m=>m.id===selected && !!m.deletedAt===$('trash').checked))selected=state.meetings.find(m=>!!m.deletedAt===$('trash').checked)?.id;render();}
+function renderNotes(m){
+  const area=$('notes');area.replaceChildren();
+  if(!m?.notes){
+    const empty=document.createElement('p');empty.className='empty-copy';
+    empty.textContent=m?.lines.length&&!state.config.base?'连接模型后，可从实录生成纪要。':'会议结束后，在这里查看纪要。';
+    area.append(empty);return;
+  }
+  for(const line of m.notes.split(/\r?\n/).filter(l=>l.trim())){
+    const heading=/^#{1,6}\s+/.test(line);
+    const element=document.createElement(heading?'h3':'p');
+    element.textContent=line.replace(/^#{1,6}\s+/,'').replace(/^[-*]\s+/,'• ');
+    area.append(element);
+  }
+}
 function render(){const m=current();
-$('people').textContent=(m?.speakers?.length||0)+' 位说话人';$('people').disabled=!m;
+renderNotes(m);
+$('welcome').hidden=!!m;
+$('welcome').querySelector('h1').textContent=$('trash').checked?'最近删除':'开始第一场会议';
+$('welcome').querySelector('p').textContent=$('trash').checked?'这里显示已删除的会议。':'点击左侧「新建会议」开始。';
+document.querySelector('.workspace').hidden=!m;
+document.querySelector('main>header').hidden=!m;
+document.querySelector('.recordings').hidden=!m?.recordings.length;
+$('emptyLines').hidden=!m || !!m.lines.length;
+if(window.refreshGuidance)refreshGuidance(m);
+$('people').textContent=(m?.speakers?.length||0)+' 位说话人';$('people').disabled=!m;$('people').hidden=!m?.speakers?.length && !recorder;
 const roster=$('knownSpeakers');roster.replaceChildren();
 const names=new Set(state.meetings.flatMap(meeting=>[...meeting.lines.map(line=>line.speaker),...(meeting.speakers||[]).map(p=>p.name)]).filter(name=>name && !['未标记','未知说话人'].includes(name) && !/^说话人 ?\d+$/.test(name)));
 for(const value of names){const option=document.createElement('option');option.value=value;roster.append(option);}
 $('meetings').replaceChildren();const q=$('search').value.toLowerCase().trim();for(const item of state.meetings){if(!!item.deletedAt!==$('trash').checked)continue;const text=JSON.stringify([item.title,item.lines,item.notes]).toLowerCase();if(!q.split(/\s+/).every(t=>text.includes(t)))continue;const b=document.createElement('button');b.className=item.id===selected?'selected':'';b.append(document.createTextNode(item.title));const d=document.createElement('small');d.textContent=new Date(item.date).toLocaleString();b.append(d);b.disabled=!!recorder||busy;b.onclick=()=>{selected=item.id;render();};$('meetings').append(b);}
-$('title').value=m?.title||'';$('context').value=m?.context||'';$('meta').textContent=m?`${new Date(m.date).toLocaleDateString()} · ${m.lines.length} 段实录 · ${m.recordings.length} 段录音`:'';$('notes').textContent=m?.notes||'连接模型后，会议的重点与决策会呈现在这里。';$('time').textContent=clock((m?.duration||0)+elapsed);$('delete').textContent=m?.deletedAt?'恢复会议':'删除会议';$('recordings').replaceChildren();for(let i=0;i<(m?.recordings.length||0);i++){const o=document.createElement('option');o.value=i;o.textContent='录音 '+(i+1);$('recordings').append(o);}$('play').disabled=!m?.recordings.length||!!recorder;
+$('title').value=m?.title||'';$('context').value=m?.context||'';$('meta').textContent=m?[new Date(m.date).toLocaleDateString(),m.lines.length && m.lines.length+' 段实录',m.recordings.length && m.recordings.length+' 段录音'].filter(Boolean).join(' · '):'';$('time').textContent=clock((m?.duration||0)+elapsed);$('delete').textContent=m?.deletedAt?'恢复会议':'删除会议';$('recordings').replaceChildren();for(let i=0;i<(m?.recordings.length||0);i++){const o=document.createElement('option');o.value=i;o.textContent='录音 '+(i+1);$('recordings').append(o);}$('play').disabled=!m?.recordings.length||!!recorder;
 $('lines').replaceChildren();for(const line of m?.lines||[]){const card=document.createElement('div');card.className='line';const name=document.createElement('input');name.className='speaker';name.setAttribute('list','knownSpeakers');name.value=line.speaker;name.setAttribute('aria-label','说话人姓名');name.disabled=busy;const text=document.createElement('textarea');text.value=line.text;text.setAttribute('aria-label','实录文字');text.disabled=busy;const remove=document.createElement('button');remove.textContent='删除';remove.disabled=busy;name.onchange=()=>action(async()=>{try{await api.line(m.id,line.id,{speaker:name.value});}finally{await reload();}});text.onchange=()=>action(async()=>{await api.line(m.id,line.id,{text:text.value});await reload();});remove.onclick=()=>action(async()=>{await api.line(m.id,line.id,{remove:true});await reload();});if(line.overlap)card.append(document.createTextNode('重叠发言 · '));card.append(name,remove);
 for(const voice of line.voices||[]){
   if(voice.id===line.speakerID)continue;
@@ -20,13 +43,13 @@ for(const voice of line.voices||[]){
   card.append(extra);
 }
 card.append(text);$('lines').append(card);}
-for(const id of ['summarize','add','export','delete'])$(id).disabled=!m||busy||!!recorder||(!!m.deletedAt&&id!=='delete');$('record').disabled=!m||busy||!!m.deletedAt;$('create').disabled=!!recorder||busy;$('settings').disabled=!!recorder||busy;$('title').disabled=!m||busy;$('context').disabled=!m||busy;if(window.renderDocLinks)renderDocLinks(m);}
-$('create').onclick=()=>action(async()=>{selected=(await api.create()).id;await reload();});$('search').oninput=render;$('trash').onchange=render;
+for(const id of ['summarize','add','export','delete'])$(id).disabled=!m||busy||!!recorder||(!!m.deletedAt&&id!=='delete');$('summarize').textContent=state.config.base?'生成总结':'连接模型';$('summarize').disabled ||= !m?.lines.length;$('summarize').hidden=!m?.lines.length;$('export').hidden=!m?.lines.length && !m?.notes;$('record').disabled=!m||busy||!!m.deletedAt;$('create').disabled=!!recorder||busy;$('settings').disabled=!!recorder||busy;$('title').disabled=!m||busy;$('context').disabled=!m||busy;if(window.renderDocLinks)renderDocLinks(m);}
+$('create').onclick=()=>action(async()=>{selected=(await api.create()).id;$('trash').checked=false;$('search').value='';await reload();});$('search').oninput=render;$('trash').onchange=()=>action(reload);
 $('title').onchange=()=>action(async()=>{await api.edit(selected,{title:$('title').value});await reload();});$('context').onchange=()=>action(async()=>{await api.edit(selected,{context:$('context').value});await reload();});
 $('add').onclick=()=>action(async()=>{const m=current();await api.addLine(m.id);await reload();});
 $('delete').onclick=()=>action(async()=>{const m=current();await api.trash(m.id,!m.deletedAt);selected=null;await reload();});$('export').onclick=()=>action(()=>api.export(selected));
 async function process(kind){deltaId=null;busy=true;render();notice('正在生成纪要…');try{await api[kind](selected);notice('已完成并保存');}finally{busy=false;await reload();}}
-$('summarize').onclick=()=>action(()=>process('summarize'));let deltaId=null;api.onDelta(({id,delta})=>{if(id!==selected)return;if(deltaId!==id){$('notes').textContent='';deltaId=id;}$('notes').textContent+=delta;});
+$('summarize').onclick=()=>{if(!state.config.base){$('settings').click();$('config').elements.base.focus();return;}action(()=>process('summarize'));};let deltaId=null;api.onDelta(({id,delta})=>{if(id!==selected)return;if(deltaId!==id){$('notes').textContent='';deltaId=id;}$('notes').textContent+=delta;});
 $('settings').onclick=()=>{for(const [k,v]of Object.entries(state.config)){const input=$('config').elements.namedItem(k);if(input)input.value=v||'';}$('config').elements.token.value='';$('configError').textContent='';$('dialog').showModal();};$('close').onclick=()=>$('dialog').close();$('config').onsubmit=async e=>{e.preventDefault();try{await api.settings(Object.fromEntries(new FormData(e.target)));$('dialog').close();await reload();notice('配置已保存');}catch(error){$('configError').textContent=error.message;}};
 window.addEventListener('beforeunload',e=>{if(recorder||busy){e.preventDefault();e.returnValue=false;}});action(reload);
 

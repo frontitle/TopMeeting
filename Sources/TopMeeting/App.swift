@@ -34,13 +34,16 @@ struct Workspace: View {
     @ViewState<Line?> private var editing: Line? = nil
     @ViewState<Bool> private var chatExpanded = true
     @ViewState<Bool> private var followTranscript = true
+    @Environment(\.openSettings) private var openSettings
+    @AppStorage("documentGuideDismissed") private var documentGuideDismissed = false
     private let accent = MeetingStyle.accent
     var body: some View {
         NavigationSplitView {
             VStack(alignment:.leading, spacing:18) {
                 HStack(spacing:10) {
-                    Image(systemName:"waveform").font(.system(size:20,weight:.bold)).foregroundStyle(.white).frame(width:40,height:40).background(LinearGradient(colors:[accent,.indigo],startPoint:.topLeading,endPoint:.bottomTrailing),in:RoundedRectangle(cornerRadius:13))
-                    VStack(alignment:.leading, spacing:2) { Text("TopMeeting").font(.system(size:19, weight:.semibold, design:.rounded)); Text(L10n.tr("你的会议工作空间")).font(.system(size:11)).foregroundStyle(.secondary) }
+                    Image(nsImage:NSApp.applicationIconImage).resizable().frame(width:36,height:36)
+                    Text("TopMeeting").font(.system(size:19, weight:.semibold))
+
                 }.padding(.top,20).padding(.horizontal,18)
                 Button(action:store.create) { Label(L10n.tr("新建会议"), systemImage:"plus").font(.system(size:13,weight:.semibold)).frame(maxWidth:.infinity).padding(.vertical,9) }.buttonStyle(MeetingPrimaryButtonStyle()).padding(.horizontal,16).disabled(store.recording || store.starting || store.ending || store.replayingVoices)
                 TextField(L10n.tr("搜索会议、纪要或说话人"),text:$store.search).textFieldStyle(.roundedBorder).padding(.horizontal,16)
@@ -91,10 +94,8 @@ struct Workspace: View {
             } else {
                 VStack(spacing:22) {
                     Image(systemName:"waveform.badge.mic").font(.system(size:58,weight:.ultraLight)).foregroundStyle(accent).padding(30).background(accent.opacity(0.07), in:RoundedRectangle(cornerRadius:30))
-                    Text(L10n.tr(store.showingTrash ? "最近删除中没有会议" : "每一场讨论，都值得被听懂")).font(.system(size:29,weight:.medium))
-                    Text(L10n.tr("专注交流。让会议助手整理脉络、留住决策。")).foregroundStyle(.secondary)
-                    Button(L10n.tr("新建会议"), action:store.create).buttonStyle(.borderedProminent).controlSize(.large).tint(accent)
-                    Text(L10n.tr("支持会中自动发现说话人、快速标记与合并\n支持飞书文档归档与会后总结")).font(.caption).foregroundStyle(.tertiary).multilineTextAlignment(.center).padding(.top,12)
+                    Text(L10n.tr(store.showingTrash ? "最近删除中没有会议" : "开始第一场会议")).font(.system(size:26,weight:.semibold))
+                    if !store.showingTrash { Text(L10n.tr("点击左侧「新建会议」开始。")).foregroundStyle(.secondary) }
                 }.frame(maxWidth:.infinity,maxHeight:.infinity)
             }
         }
@@ -173,7 +174,7 @@ struct Workspace: View {
             ScrollView {
                 LazyVStack(alignment:.leading,spacing:12) {
                     if m.lines.filter({ $0.live != true }).isEmpty {
-                        ContentUnavailableView(L10n.tr("等待第一句发言"),systemImage:"waveform",description:Text(L10n.tr("识别中的文字显示在系统悬浮窗，收句后进入实录。\n正常开会即可自动区分声音，点击说话人标记姓名。")))
+                        ContentUnavailableView(L10n.tr("等待第一句发言"),systemImage:"waveform",description:Text(L10n.tr(store.recording ? "完整发言会自动进入实录。" : "点击开始录音，首次使用需允许麦克风和语音识别。")))
                     }
                     ForEach(m.transcriptParagraphs) { piece in
                         let line = piece.source
@@ -272,9 +273,9 @@ struct Workspace: View {
             if store.base.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty || store.token.isEmpty || !store.connectionChecked {
                 VStack(alignment:.leading,spacing:7) {
                     Label(L10n.tr(store.base.isEmpty || store.token.isEmpty ? "AI 纪要暂不可用" : "AI 连接尚未验证"),systemImage:"wifi.exclamationmark").font(.system(size:13,weight:.semibold))
-                    Text(L10n.tr("在设置的扩展中连接总结模型。录音和实录仍可正常使用，已有纪要会保留。"))
+                    Text(L10n.tr("在扩展中连接模型，即可生成纪要。"))
                         .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
-                }.padding(14).frame(maxWidth:.infinity,alignment:.leading).background(Color.orange.opacity(0.07),in:RoundedRectangle(cornerRadius:12))
+                }.padding(14).frame(maxWidth:.infinity,alignment:.leading).background(MeetingStyle.surface,in:RoundedRectangle(cornerRadius:12))
             } else if m.summaryState == "connection" || m.summaryState == "retry" {
                 VStack(alignment:.leading,spacing:8) {
                     Label(L10n.tr(m.summaryState == "connection" ? "总结等待连接" : "总结尚未完成"),systemImage:"exclamationmark.circle").font(.system(size:13,weight:.medium))
@@ -307,10 +308,24 @@ struct Workspace: View {
                 }.frame(maxWidth:.infinity,alignment:.leading)
             }
             MeetingDocumentLinks(meeting:m)
-            FeishuMeetingPanel(meeting:m)
+            if store.feishuReady || m.feishu != nil || store.feishuAutoSync {
+                FeishuMeetingPanel(meeting:m)
+            } else if !store.recording && !store.ending && !documentGuideDismissed && m.audioPath != nil &&
+                      store.documentLabels.isEmpty && m.documentLinks?.isEmpty != false {
+                HStack {
+                    VStack(alignment:.leading,spacing:3) {
+                        Text(L10n.tr("会议文档")).font(.caption.bold())
+                        Text(L10n.tr("连接账号，下次开会时自动建档。")).font(.caption).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Button(L10n.tr("连接文档")) { store.settingsTab = "extensions"; openSettings() }
+                    Button { documentGuideDismissed = true } label: { Image(systemName:"xmark") }
+                        .buttonStyle(.plain).accessibilityLabel(L10n.tr("不再提示会议文档"))
+                }.modifier(MeetingCard())
+            }
             Divider()
             HStack {
-                Label(L10n.tr("会后生成核心信息画板"),systemImage:"doc.richtext").font(.caption2).foregroundStyle(.tertiary)
+                if store.feishuReady || m.feishu != nil { Label(L10n.tr("会后生成核心信息画板"),systemImage:"doc.richtext").font(.caption2).foregroundStyle(.tertiary) }
                 Spacer()
                 Button(L10n.tr(store.recording ? "更新纪要" : "生成完整总结")) { store.analyze() }.buttonStyle(.bordered).controlSize(.small).disabled(store.busy || m.lines.isEmpty || store.base.isEmpty || store.token.isEmpty)
             }
@@ -335,7 +350,7 @@ struct LineEditor: View {
 struct ConnectionSettings: View {
     @EnvironmentObject var store: MeetingStore
     var body: some View {
-        TabView {
+        TabView(selection:$store.settingsTab) {
             Form {
                 Section(L10n.tr("语言")) {
                     Picker(L10n.tr("界面语言"),selection:$store.interfaceLanguage) { Text(L10n.tr("简体中文")).tag("zh-Hans"); Text("English").tag("en") }
@@ -361,8 +376,8 @@ struct ConnectionSettings: View {
                 Text(L10n.tr("基础增益默认 3×，轻声会自动补偿至最高 6×，近处声音按峰值限制增益。只增强送入识别器的声音，原始录音不变。录音开始前可调整。多人会议请使用能覆盖全场的麦克风，并在控制中心选择标准或宽谱，避免语音突显压低远处人声。")).font(.caption).foregroundStyle(.secondary)
             }
             if store.recording && !store.captureStatus.isEmpty { Text(store.captureStatus).font(.caption).foregroundStyle(.secondary) }
-            }.formStyle(.grouped).tabItem { Label(L10n.tr("通用"),systemImage:"slider.horizontal.3") }
-            ExtensionSettings().tabItem { Label(L10n.tr("扩展"),systemImage:"puzzlepiece.extension") }
+            }.formStyle(.grouped).tabItem { Label(L10n.tr("通用"),systemImage:"slider.horizontal.3") }.tag("general")
+            ExtensionSettings().tabItem { Label(L10n.tr("扩展"),systemImage:"puzzlepiece.extension") }.tag("extensions")
         }.padding(18).frame(width:720,height:740)
     }
 }

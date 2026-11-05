@@ -37,6 +37,7 @@ if(primaryInstance) app.whenReady().then(async()=>{
  documents=new DocumentStore(root,meeting,persist,id=>win.webContents.send('meeting-updated',id));
  await documents.load();
  speech=new LocalSpeech(process.resourcesPath,root,event=>{
+   if(event.type==='modelProgress'){win.webContents.send('model-progress',event.count,event.total);return;}
    if(!active) return;
    if(event.type==='error') win.webContents.send('speech-error',event.message);
    if(event.type==='roster' || event.type==='attribution'){
@@ -60,6 +61,7 @@ if(primaryInstance) app.whenReady().then(async()=>{
  });
  if(smoke && process.env.TOPMEETING_SMOKE_MODELS)speech.models=process.env.TOPMEETING_SMOKE_MODELS;
  bind('load',()=>({meetings,config:publicConfig(),accounts:documents.public()}));
+ bind('check-models',()=>speech.check());
  bind('install-models',()=>speech.install());
  bind('bind-account',(id,settings)=>documents.bind(id,settings));
  bind('configure-account',(id,action)=>documents.configure(id,action));
@@ -152,23 +154,30 @@ if(primaryInstance) app.whenReady().then(async()=>{
    try{if(active.local && speech.child)await speech.command('finish',{},'finished');}
    finally{m.duration+=Math.max(0,Math.min(Number(duration)||0,86400));active=null;overlay.hide();await persist();}
  });
+ bind('summarize',async id=>{
+   const m=meeting(id);
+   if(active?.id===id || inFlight.has(id))throw new Error('请等待录音或当前请求结束');
+   if(!config.base || !config.model)throw new Error('请先在设置中连接总结模型');
+   const {body,signature}=summaryInput(m,config);
+   if(m.signature===signature && m.notes)return m;
+   inFlight.add(id);
+   try {
+     const response=await fetch(endpoint(config.base,'chat/completions'),{
+       method:'POST',redirect:'error',signal:AbortSignal.timeout(300000),
+       headers:{'Content-Type':'application/json',...(config.token?{Authorization:'Bearer '+config.token}:{})},
+       body:JSON.stringify(body)
+     });
+     const notes=await readSSE(response,delta=>win.webContents.send('summary-delta',{id,delta}));
+     if(signature!==summaryInput(m,config).signature)throw new Error('实录已有修改，请重新生成纪要');
+     m.notes=notes;m.signature=signature;await persist();return m;
+   }finally{inFlight.delete(id);}
+ });
  bind('audio',async(id,index)=>{const m=meeting(id);if(active?.id===id)throw new Error('请先结束录音');const file=m.recordings[index];if(!file)throw new Error('录音不存在');return new Uint8Array(await fs.readFile(path.join(root,'audio',file)));});
  bind('export',async(id)=>{const m=meeting(id);const result=await dialog.showSaveDialog(win,{defaultPath:'meeting.md',filters:[{name:'Markdown',extensions:['md']}]});if(!result.canceled)await fs.writeFile(result.filePath,`# ${m.title}\n\n${m.notes}\n\n## 实录\n\n${m.lines.map(l=>`**${l.speaker}** ${l.text}`).join('\n\n')}`);});
  await win.loadFile(path.join(__dirname,'index.html'));
  if(smoke){try{const result=await win.webContents.executeJavaScript(`(async()=>{await window.api.create();const data=await window.api.load();if(data.meetings.length!==1)throw Error('Storage failure');await window.api.edit(data.meetings[0].id,{title:'Synthetic smoke fixture',lines:[{text:'Release check',speaker:'Test'}]});await window.api.trash(data.meetings[0].id,true);await window.api.trash(data.meetings[0].id,false);await window.api.start(data.meetings[0].id,false);await window.api.chunk(new Uint8Array([1,2,3]));await window.api.stop(2);const audio=await window.api.audio(data.meetings[0].id,0);if(audio.length!==3||audio[2]!==3)throw Error('Audio persistence failed');if(!document.querySelector('#record'))throw Error('UI missing');return 'PASS';})()`);await win.webContents.executeJavaScript('reload()');
  if(process.env.TOPMEETING_SMOKE_FIXTURE){
-   await win.webContents.executeJavaScript(`(async()=>{
-     await begin();
-     await new Promise(resolve=>setTimeout(resolve,20000));
-     await togglePause();await togglePause();await finish();
-     const saved=(await api.load()).meetings[0];
-     if(!saved.lines.some(line=>Number.isFinite(line.start)&&line.text))throw Error('No local transcript from packaged microphone path');
-     if(!saved.speakers?.length)throw Error('Speaker roster missing');
-     document.querySelector('#people').click();
-     if(!document.querySelector('#peopleList input'))throw Error('Speaker management not available');
-     document.querySelector('#closePeople').click();
-     return true;
-   })()`);
+   await require('./packaged-checks.cjs').checkWorkspace(win,speech,root,process.env.TOPMEETING_SMOKE_MODELS);
  }
  await new Promise(resolve=>setTimeout(resolve,500));await fs.writeFile(path.join(os.tmpdir(),'topmeeting-windows-preview.png'),(await win.webContents.capturePage()).toPNG());console.log('WINDOWS_SMOKE_'+result);await fs.writeFile(path.join(os.tmpdir(),'topmeeting-smoke-result.txt'),result);app.exit(0);}catch(e){console.error(e);app.exit(1);}}
 }).catch(e=>{console.error(e.message);app.exit(1);});

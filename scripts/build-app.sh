@@ -53,8 +53,8 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 <key>CFBundleIdentifier</key><string>com.topmeeting.mac</string>
 <key>CFBundleExecutable</key><string>TopMeeting</string>
 <key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleShortVersionString</key><string>0.13.0</string>
-<key>CFBundleVersion</key><string>18</string>
+<key>CFBundleShortVersionString</key><string>0.14.0</string>
+<key>CFBundleVersion</key><string>19</string>
 <key>LSMinimumSystemVersion</key><string>15.0</string>
 <key>NSMicrophoneUsageDescription</key><string>录制会议声音，并在本机生成会议实录。</string>
 <key>NSSpeechRecognitionUsageDescription</key><string>使用本机语音识别生成实时字幕。</string>

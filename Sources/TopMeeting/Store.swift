@@ -44,6 +44,7 @@ import AVFoundation
     @Published var documentLabels = UserDefaults.standard.dictionary(forKey:"documentLabels") as? [String:String] ?? [:]
     @Published var documentAutomatic = UserDefaults.standard.dictionary(forKey:"documentAutomatic") as? [String:Bool] ?? [:]
     @Published var documentPending = Set<String>()
+    @Published var settingsTab = "general"
     @Published var feishuReady = false
     @Published var feishuChecking = false
     @Published var feishuStatus = "飞书尚未连接"

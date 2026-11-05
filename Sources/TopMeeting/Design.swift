@@ -1,16 +1,16 @@
 import SwiftUI
 
 enum MeetingStyle {
-    static let brand = Color(red:0.20,green:0.32,blue:0.92)
+    static let brand = Color(nsColor:.labelColor)
     static let accent = Color(nsColor:NSColor(name:nil) { appearance in
         appearance.bestMatch(from:[.darkAqua,.aqua]) == .darkAqua
-            ? NSColor(srgbRed:0.55,green:0.64,blue:1,alpha:1)
-            : NSColor(srgbRed:0.20,green:0.32,blue:0.92,alpha:1)
+            ? NSColor(srgbRed:0.65,green:0.77,blue:0.94,alpha:1)
+            : NSColor(srgbRed:0.22,green:0.36,blue:0.56,alpha:1)
     })
     static let canvas = Color(nsColor:NSColor(name:nil) { appearance in
         appearance.bestMatch(from:[.darkAqua,.aqua]) == .darkAqua
-            ? NSColor(srgbRed:0.10,green:0.11,blue:0.14,alpha:1)
-            : NSColor(srgbRed:0.965,green:0.972,blue:0.985,alpha:1)
+            ? NSColor(srgbRed:0.13,green:0.135,blue:0.125,alpha:1)
+            : NSColor(srgbRed:0.975,green:0.975,blue:0.97,alpha:1)
     })
     static let surface = Color(nsColor:.textBackgroundColor)
     static let border = Color.primary.opacity(0.065)
@@ -39,8 +39,8 @@ struct MeetingBadge: View {
 }
 struct MeetingCard: ViewModifier {
     func body(content: Content) -> some View {
-        content.padding(18).background(MeetingStyle.surface,in:RoundedRectangle(cornerRadius:16))
-            .overlay(RoundedRectangle(cornerRadius:16).strokeBorder(MeetingStyle.border))
+        content.padding(16).background(MeetingStyle.surface,in:RoundedRectangle(cornerRadius:12))
+            .overlay(RoundedRectangle(cornerRadius:12).strokeBorder(MeetingStyle.border))
     }
 }
 
@@ -48,8 +48,8 @@ struct MeetingPrimaryButtonStyle: ButtonStyle {
     var tint: Color = MeetingStyle.brand
     @Environment(\.isEnabled) private var enabled
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label.foregroundStyle(.white).padding(.horizontal,10).padding(.vertical,6)
-            .background(tint.opacity(enabled ? (configuration.isPressed ? 0.8 : 1) : 0.4),in:RoundedRectangle(cornerRadius:10))
-            .contentShape(RoundedRectangle(cornerRadius:10))
+        configuration.label.foregroundStyle(tint == MeetingStyle.brand ? Color(nsColor:.textBackgroundColor) : .white).padding(.horizontal,10).padding(.vertical,6)
+            .background(tint.opacity(enabled ? (configuration.isPressed ? 0.8 : 1) : 0.4),in:RoundedRectangle(cornerRadius:8))
+            .contentShape(RoundedRectangle(cornerRadius:8))
     }
 }
