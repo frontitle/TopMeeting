@@ -18,7 +18,7 @@ SIGNATURES = {
     'private key': rb'-----BEGIN (?:RSA |EC |OPENSSH |DSA |ENCRYPTED )?PRIVATE KEY-----',
     'provider credential': rb'(?:gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,}|sk-(?:proj-)?[A-Za-z0-9_-]{32,}|AKIA[A-Z0-9]{16})',
     'private endpoint': rb'(?<![\w.])(?:192\.168\.\d{1,3}\.\d{1,3}|100\.(?:6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.\d{1,3}\.\d{1,3})(?![\w.])',
-    'personal home directory': rb'(?:/Users/|C:\\\\Users\\\\)[A-Za-z0-9_.-]+[/\\]',
+    'personal home directory': rb'(?:/Users/|[A-Z]:[\\]+Users[\\]+)[A-Za-z0-9_.-]+[/\\]',
 }
 ASSETS = {'apps/windows/src/logo.png'}
 LEGACY_ASSETS = {'apps/windows/build/icon.png'}
