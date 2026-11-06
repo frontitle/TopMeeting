@@ -22,6 +22,8 @@ TopMeeting is a local-first meeting assistant for macOS and Windows with **real-
 
 **Generate notes.** Select a configured model provider to summarize on demand or after recording ends. Equivalent requests reuse saved notes. A failed request preserves the previous notes. Local live transcription requires no paid ASR service.
 
+Desktop updates are available starting with 0.15.0. On macOS use **TopMeeting → Check for Updates**. On Windows use the setup installer, then **Settings → Software update**. See the [OTA and release guide](docs/UPDATES.md).
+
 ## Install and build
 
 The Windows prerelease includes an unsigned per-user installer and a ZIP. Windows may display an unknown-publisher prompt. See the [Windows guide](apps/windows/README.md) for installation, model setup and document permissions.

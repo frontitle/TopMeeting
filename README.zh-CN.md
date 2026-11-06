@@ -8,6 +8,8 @@ TopMeeting 是面向 macOS 和 Windows 的本地优先会议助手，支持实�
 - **回看抢话片段。** 本地模型标出可能同时发言的时间段，实录可保留多位参与者。拾音距离与环境噪声会影响识别结果。
 - **按需连接服务。** 本地转写无需付费转写接口。可连接自己的 OpenClaw 或兼容模型生成纪要，也可绑定文档平台，在开会时自动建档并从客户端打开。
 
+从 0.15.0 起可在软件内更新。Mac 选择「TopMeeting → 检查更新」，Windows 安装 setup.exe 后，在「设置与扩展 → 软件更新」操作。[OTA 发布说明](docs/UPDATES.md)
+
 ## Windows 预览版下载
 
 [Windows x64 安装包与 ZIP](https://github.com/frontitle/TopMeeting/releases/tag/windows-v0.15.0-preview.1)。首次下载模型后可离线实时转写、自动匹配声纹。悬浮窗支持暂停和继续。飞书、钉钉、腾讯文档、Google Docs 和 Notion 可在开会时建档并提供链接。详见 [Windows 能力说明](apps/windows/README.zh-CN.md)。
@@ -59,7 +61,7 @@ TOPMEETING_UI_LANGUAGE=en ./scripts/preview-workspace.sh /tmp/topmeeting-english
 
 ## 跨平台与后续范围
 
-现有完整客户端为 macOS；新增 [Windows 0.14.0 预览客户端](apps/windows/README.zh-CN.md)，支持本地流式转写、声纹和文档账号连接。`packages/core` 提供不依赖平台的搜索、转写差异与带来源校验的纪要补丁基础，配有 Windows/macOS/Linux CI 配置；尚未替代原生 Swift 业务层。扩展清单定义位于 `schemas/`。
+现有完整客户端为 macOS；新增 [Windows 0.15.0 预览客户端](apps/windows/README.zh-CN.md)，支持本地流式转写、声纹和文档账号连接。`packages/core` 提供不依赖平台的搜索、转写差异与带来源校验的纪要补丁基础，配有 Windows/macOS/Linux CI 配置；尚未替代原生 Swift 业务层。扩展清单定义位于 `schemas/`。
 
 Windows 功能补齐、Web 客户端、Slack 连接器、SQLite 全文索引和项目分类、自动增量实时总结仍是后续工作。系统音频采集、多人重叠语音分离、签名公证和自动更新也尚未实现。详见 [产品路线](docs/PRODUCT-ROADMAP.zh-CN.md)。
 
