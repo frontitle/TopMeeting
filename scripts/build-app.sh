@@ -54,7 +54,7 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 <key>CFBundleExecutable</key><string>TopMeeting</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleShortVersionString</key><string>0.14.0</string>
-<key>CFBundleVersion</key><string>20</string>
+<key>CFBundleVersion</key><string>21</string>
 <key>LSMinimumSystemVersion</key><string>15.0</string>
 <key>NSMicrophoneUsageDescription</key><string>录制会议声音，并在本机生成会议实录。</string>
 <key>NSSpeechRecognitionUsageDescription</key><string>使用本机语音识别生成实时字幕。</string>
@@ -62,4 +62,9 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 </dict></plist>
 PLIST
 codesign --force --sign - "$APP"
+# In-place builds replace files inside Contents without changing the bundle
+# directory timestamp that Spotlight and IconServices use for invalidation.
+touch "$APP"
+/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$APP"
+mdimport -i "$APP"
 print "Built: $APP"
