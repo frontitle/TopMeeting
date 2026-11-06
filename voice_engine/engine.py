@@ -131,13 +131,21 @@ class Engine:
         classes = probabilities.argmax(axis=1)
         labels = MAPPING[classes]
         speech = (1-probabilities[:,0]) > .6
-        overlap = (probabilities[:,4:].sum(axis=1) > .55) & (labels.sum(axis=1) >= 2)
+        pair_probability = probabilities[:,4:].sum(axis=1)
+        overlap = (pair_probability > .55) & (labels.sum(axis=1) >= 2)
         labels[~speech] = 0
         frames = min(len(labels), max(0,int((valid-self.field/2)/self.shift)))
         labels, overlap = labels[:frames], overlap[:frames]
         # Ignore isolated neural spikes shorter than 200 ms, not all short speech.
         for a,b in runs(overlap):
             if (b-a)*self.shift/RATE < .2: overlap[a:b] = False
+        # A confirmed interruption often fades at either edge. Follow the same
+        # pair while it remains the most probable class, without triggering
+        # a new interruption from weak evidence or changing speaker identities.
+        for pair in (4,5,6):
+            edges = (classes[:frames] == pair) & (pair_probability[:frames] >= .40)
+            for start,end in runs(edges):
+                if overlap[start:end].any(): overlap[start:end] = True
         return labels, overlap, probabilities[:frames]
 
     def isolated(self, samples, labels, track, probabilities=None):

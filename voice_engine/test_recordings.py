@@ -46,7 +46,12 @@ with tempfile.TemporaryDirectory() as tmp:
     mixture = raw[22*RATE:25*RATE]*.5+raw[34*RATE:37*RATE]*.5
     result = e.infer(mixture)
     detected = sum(t['end']-t['start'] for t in result['events'] if t['overlap'])
-    assert detected > .5, result
+    # The fixed real-speech mixture used to lose about 230 ms at the
+    # interruption boundaries. Its two isolated sources must stay single.
+    assert detected >= 1.40, result
+    for start in (22,34):
+        _,solo_overlap,_ = e.segment(raw[start*RATE:(start+3)*RATE])
+        assert not solo_overlap.any(), 'Single-speaker control acquired an overlap marker'
     report['checks'].append({'test':'controlled overlap of two real human recordings','duration':3,'detectedOverlapSeconds':round(detected,3),'events':result['events'],'limitation':'Controlled digital mixture, not a live argument. Missed overlap remains; not a validated recall estimate.'})
     # Reproduce a mistaken split using a second cluster backed by a disjoint real
     # utterance of speaker A. This is an induced split regression, not an accuracy metric.
