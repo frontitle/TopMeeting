@@ -21,6 +21,17 @@ actor FeishuMock {
         if !value() { throw NSError(domain:"CoreChecks",code:1,userInfo:[NSLocalizedDescriptionKey:message]) }
     }
     @MainActor static func main() async throws {
+        let suite = UUID().uuidString
+        let defaults = UserDefaults(suiteName:suite)!
+        defer { defaults.removePersistentDomain(forName:suite) }
+        defaults.set(["ding":true],forKey:"documentAutomatic")
+        try check(ExternalDocumentService.selected(in:defaults) == .ding,"Single destination migration")
+        defaults.set(true,forKey:"feishuAutoSync")
+        try check(ExternalDocumentService.selected(in:defaults) == nil,"Multiple legacy destinations require a choice")
+        defaults.set("feishu",forKey:"meetingDocumentPlatform")
+        try check(ExternalDocumentService.selected(in:defaults) == .feishu,"Explicit destination takes priority")
+        defaults.set("local",forKey:"meetingDocumentPlatform")
+        try check(ExternalDocumentService.selected(in:defaults) == nil,"Local-only selection survives restart")
         let archiveRoot = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at:archiveRoot,withIntermediateDirectories:true)
         defer { try? FileManager.default.removeItem(at:archiveRoot) }

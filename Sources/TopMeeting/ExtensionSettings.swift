@@ -19,7 +19,6 @@ struct ExtensionSettings: View {
                 }
                 Text(L10n.tr("凭据分别存入钥匙串，不随会议导出。")).font(.caption).foregroundStyle(.secondary)
             }
-            FeishuSettings()
             DocumentAccountSettings()
         }.formStyle(.grouped)
     }

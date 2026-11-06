@@ -309,7 +309,7 @@ struct Workspace: View {
                 }.frame(maxWidth:.infinity,alignment:.leading)
             }
             MeetingDocumentLinks(meeting:m)
-            if store.feishuReady || m.feishu != nil || store.feishuAutoSync {
+            if m.feishu != nil || (store.documentPlatform == .feishu && (store.feishuReady || store.feishuAutoSync)) {
                 FeishuMeetingPanel(meeting:m)
             } else if !store.recording && !store.ending && !documentGuideDismissed && m.audioPath != nil &&
                       store.documentLabels.isEmpty && m.documentLinks?.isEmpty != false {
@@ -326,7 +326,7 @@ struct Workspace: View {
             }
             Divider()
             HStack {
-                if store.feishuReady || m.feishu != nil { Label(L10n.tr("会后生成核心信息画板"),systemImage:"doc.richtext").font(.caption2).foregroundStyle(.tertiary) }
+                if (store.documentPlatform == .feishu && store.feishuReady) || m.feishu != nil { Label(L10n.tr("会后生成核心信息画板"),systemImage:"doc.richtext").font(.caption2).foregroundStyle(.tertiary) }
                 Spacer()
                 Button(L10n.tr(store.recording ? "更新纪要" : "生成完整总结")) { store.analyze() }.buttonStyle(.bordered).controlSize(.small).disabled(store.busy || m.lines.isEmpty || store.base.isEmpty || store.token.isEmpty)
             }

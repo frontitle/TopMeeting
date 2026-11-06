@@ -44,3 +44,18 @@ test('a meeting creates one document and keeps an uncertain write for user recon
   const restarted=new DocumentStore(directory,()=>null,()=>{},()=>{});await restarted.load();
   assert.equal(restarted.public().find(a=>a.id==='notion').enabled,false);
 });
+
+test('switching the active workspace retains credentials and legacy ambiguous settings stay local',async t=>{
+  const directory=await fs.mkdtemp(path.join(os.tmpdir(),'topmeeting-platform-'));
+  t.after(()=>fs.rm(directory,{recursive:true,force:true}));
+  const store=new DocumentStore(directory,()=>null,()=>{},()=>{});
+  store.accounts={feishu:{label:'F',enabled:true},ding:{label:'D',enabled:true}};
+  await store.save();
+  await store.load();
+  assert.equal(store.public().filter(a=>a.enabled).length,0);
+  await store.configure('ding','enable');
+  await store.configure('feishu','enable');
+  await store.load();
+  assert.deepEqual(store.public().filter(a=>a.enabled).map(a=>a.id),['feishu']);
+  assert.equal(store.accounts.ding.label,'D');
+});

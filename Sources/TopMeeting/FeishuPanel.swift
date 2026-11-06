@@ -8,7 +8,10 @@ struct FeishuSettings: View {
     @InlineState private var secret = ""
     @InlineState private var confirmDisconnect = false
     var body: some View {
-        Section(L10n.tr("飞书文档")) {
+        Group {
+            if UserDefaults.standard.string(forKey:"feishuBoundAppID") == nil {
+                Link(L10n.tr("在飞书开放平台创建应用"),destination:URL(string:"https://open.feishu.cn/app")!)
+            }
             TextField("飞书应用 App ID",text:$appID)
             SecureField("飞书应用 App Secret",text:$secret)
             Button("绑定专用应用") {
@@ -38,7 +41,7 @@ struct FeishuSettings: View {
                             defer { store.feishuChecking = false }
                             do { try await FeishuCLI().disconnectApplication()
                                 store.feishuLoginURL = nil; store.feishuDeviceCode = nil; store.feishuReady = false
-                                store.feishuAutoSync = false; store.saveFeishuPreferences(); store.feishuStatus = "已解除绑定"; appID = ""
+                                store.feishuAutoSync = false; store.saveFeishuPreferences(); UserDefaults.standard.removeObject(forKey:"feishuAutoSync"); store.feishuStatus = "已解除绑定"; appID = ""
                             } catch { store.feishuStatus = error.localizedDescription }
                         }
                     }

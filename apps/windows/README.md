@@ -22,7 +22,7 @@ Verified model files are reused after a failed download. Transcription and voice
 | DingTalk | Supply the organization's AppKey and secret, knowledge space, operator Union ID and an optional parent node. The app needs write permission there. |
 | Tencent Docs | Obtain a personal MCP token from [Tencent Docs](https://docs.qq.com/open/auth/mcp.html). Binding checks the available document-creation tool. |
 
-Enable automatic creation for each desired service. Open the returned link from the meeting. If a request is interrupted, check the provider before retrying. The Windows client handles document creation and links. Full transcript, attachment and board delivery is available through the macOS Feishu adapter.
+Select one workspace and save it as the automatic destination. Switching the destination keeps previously bound accounts and existing meeting links. Open the returned link from the meeting. If a request is interrupted, check the provider before retrying. The Windows client handles document creation and links. Full transcript, attachment and board delivery is available through the macOS Feishu adapter.
 
 ## Development
 

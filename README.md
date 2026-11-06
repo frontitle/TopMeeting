@@ -2,7 +2,11 @@
 
 [简体中文](README.zh-CN.md) · [Windows download](https://github.com/frontitle/TopMeeting/releases/tag/windows-v0.14.0-preview.1) · [Contributing](CONTRIBUTING.md)
 
-TopMeeting records meetings on your device, identifies speakers and turns finalized speech into an editable transcript. Connect your own OpenClaw gateway or compatible model service to generate meeting notes. The original project is licensed under [Apache-2.0](LICENSE).
+TopMeeting is a local-first meeting assistant for macOS and Windows with **real-time speech-to-text and offline speaker diarization**. Put one microphone on the table and follow a conversation as an editable, speaker-attributed transcript.
+
+- **Name a voice as you go.** On-device speaker embeddings group turns before anyone enrolls. Name an anonymous speaker, reuse a known identity, or merge a mistaken split. The voice profiles stay on your device.
+- **Review interruptions.** Local overlap detection flags likely simultaneous speech for review. A timestamped paragraph can list multiple participants. Accuracy varies with microphone placement and room noise.
+- **Choose what leaves the device.** Local transcription works without a paid transcription API. Connect your own OpenClaw or compatible LLM for summaries, or bind a document workspace to create a meeting link when recording starts.
 
 | | macOS | Windows x64 |
 |---|---|---|
@@ -14,7 +18,7 @@ TopMeeting records meetings on your device, identifies speakers and turns finali
 
 **Start a meeting.** Create a meeting, then choose **Start recording**. On Windows, the first click checks the speech models before asking for microphone access. Download approximately 220 MB once for offline transcription, or choose audio-only recording to save the original audio immediately. Click Start again after the download to begin recording.
 
-**Connect a document account.** Under Settings → Extensions, bind Feishu, Google Docs, Notion, DingTalk or Tencent Docs and enable automatic creation. Recording starts a document for that meeting. Open it from the meeting workspace. An uncertain creation result stays available for manual reconciliation so that restarting a meeting does not duplicate documents.
+**Connect a document account.** Under Settings → Extensions, choose a single destination (Feishu, DingTalk, Tencent Docs, Google Docs or Notion), bind your account and enable automatic creation. Recording starts a document for that meeting. Open it from the meeting workspace. An uncertain creation result stays available for manual reconciliation so that restarting a meeting does not duplicate documents.
 
 **Generate notes.** Select a configured model provider to summarize on demand or after recording ends. Equivalent requests reuse saved notes. A failed request preserves the previous notes. Local live transcription requires no paid ASR service.
 

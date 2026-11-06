@@ -41,6 +41,10 @@ import AVFoundation
     @Published var rememberedPeople: [VoiceProfile] = []
     @Published var savedTerms: [TermCorrection] = []
     @Published var correctionStatus = ""
+    @Published var documentPlatform = ExternalDocumentService.selected(in:.standard) {
+        didSet { UserDefaults.standard.set(documentPlatform?.id ?? "local",forKey:"meetingDocumentPlatform") }
+    }
+    var automaticFeishu: Bool { documentPlatform == .feishu && feishuAutoSync }
     @Published var documentLabels = UserDefaults.standard.dictionary(forKey:"documentLabels") as? [String:String] ?? [:]
     @Published var documentAutomatic = UserDefaults.standard.dictionary(forKey:"documentAutomatic") as? [String:Bool] ?? [:]
     @Published var documentPending = Set<String>()
@@ -465,7 +469,7 @@ import AVFoundation
                 offset = current?.duration ?? 0; recordingClock.start(); recordingPaused = false; inputLevels = Array(repeating:-90,count:28); elapsed = offset; recording = true
                 update { $0.summaryState = "live"; $0.audioPath = url.path; $0.audioSegments = ($0.audioSegments ?? []) + [url.path] }
                 if let id = selected { startDocumentLinks(id:id) }
-                if feishuAutoSync, let id = selected {
+                if automaticFeishu, let id = selected {
                     Task {
                         do { feishuReady = try await feishuClient.status()
                             if feishuReady { await performFeishuSync(id:id,final:false) }
@@ -478,7 +482,7 @@ import AVFoundation
                         guard let self, !self.recordingPaused else { return }
                         self.elapsed = self.offset + self.recordingClock.elapsed()
                         if Int(self.elapsed) % 15 == 0 { self.update { $0.duration = self.elapsed } }
-                        if Int(self.elapsed) % 60 == 0, self.feishuAutoSync, self.feishuReady { self.syncFeishu(final:false) }
+                        if Int(self.elapsed) % 60 == 0, self.automaticFeishu, self.feishuReady { self.syncFeishu(final:false) }
                     }
                 }
             } catch { notice = error.localizedDescription }
@@ -570,7 +574,7 @@ import AVFoundation
         guard !meeting.lines.isEmpty else { return }
         let isFinal = final || !recording
         guard !base.isEmpty, !token.isEmpty else {
-            if isFinal { update { $0.summaryState = "connection" }; if feishuAutoSync && feishuReady { syncFeishu(final:true) } }
+            if isFinal { update { $0.summaryState = "connection" }; if automaticFeishu && feishuReady { syncFeishu(final:true) } }
             else { notice = "请先配置 OpenClaw 连接。" }
             return
         }
@@ -579,7 +583,7 @@ import AVFoundation
         if meeting.summaryFingerprint == fingerprint && !meeting.notes.isEmpty {
             if isFinal {
                 if meeting.summaryState != "complete" { update { $0.summaryState = "complete" } }
-                if feishuAutoSync && feishuReady { syncFeishu(final:true) }
+                if automaticFeishu && feishuReady { syncFeishu(final:true) }
             }
             return
         }
@@ -610,12 +614,12 @@ import AVFoundation
                 guard !result.isEmpty else { throw Gateway.error("远程未返回纪要内容。") }
                 meetings[i].notes = result; meetings[i].summaryState = isFinal ? "complete" : "live"
                 meetings[i].summarizedAt = Date(); meetings[i].summaryFingerprint = fingerprint; save()
-                if feishuAutoSync && feishuReady { syncFeishu(id:meeting.id,final:isFinal) }
+                if automaticFeishu && feishuReady { syncFeishu(id:meeting.id,final:isFinal) }
                 if selected == meeting.id { busy = false; streaming = "" }
             } catch {
                 guard summaryRuns[meeting.id] == run else { return }
                 if let i = meetings.firstIndex(where:{$0.id == meeting.id}) { meetings[i].summaryState = "retry"; save() }
-                if isFinal && feishuAutoSync && feishuReady { syncFeishu(id:meeting.id,final:true) }
+                if isFinal && automaticFeishu && feishuReady { syncFeishu(id:meeting.id,final:true) }
                 if selected == meeting.id { busy = false; streaming = "" }
             }
         }

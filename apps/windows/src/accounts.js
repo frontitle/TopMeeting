@@ -19,12 +19,14 @@ function fields(){
 }
 $('accounts').onclick=()=>{
   $('service').replaceChildren();for(const a of state.accounts){const option=document.createElement('option');option.value=a.id;option.textContent=a.name;$('service').append(option);}
+  const active=state.accounts.find(account=>account.enabled);
+  if(active)$('service').value=active.id;
   fields();$('accountDialog').showModal();
 };
 $('closeAccounts').onclick=()=>$('accountDialog').close();$('service').onchange=fields;
 async function accountAction(action){
   const buttons=Array.from($('accountDialog').querySelectorAll('button'));
-  buttons.forEach(b=>b.disabled=true);
+  buttons.forEach(b=>b.disabled=true);$('service').disabled=true;
   const id=$('service').value;
   try{
     if(action==='bind'){
@@ -34,7 +36,7 @@ async function accountAction(action){
     }else state.accounts=await api.configureAccount(id,action==='unlink'?'disconnect':$('autoDoc').checked?'enable':'disable');
     fields();$('accountMessage').textContent='设置已保存';
   }catch(error){$('accountMessage').textContent=error.message;}
-  finally{buttons.forEach(b=>b.disabled=false);}
+  finally{buttons.forEach(b=>b.disabled=false);$('service').disabled=false;const bound=state.accounts.some(a=>a.id===id && a.label);$('saveAuto').disabled=$('unlink').disabled=!bound;}
 }
 $('bindAccount').onclick=()=>accountAction('bind');$('saveAuto').onclick=()=>accountAction('save');$('unlink').onclick=()=>accountAction('unlink');
 window.renderDocLinks=m=>{

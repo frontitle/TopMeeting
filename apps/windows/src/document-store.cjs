@@ -13,11 +13,22 @@ class DocumentStore {
     this.meeting=meeting;this.persist=persist;this.notify=notify;
     this.accounts={};this.pending=new Set();this.busy=false;
   }
-  async load(){this.accounts=await this.settings.load();}
+  async load(){
+    this.accounts=await this.settings.load();
+    const enabled=Object.values(this.accounts).filter(account=>account.enabled);
+    // Older versions allowed multiple destinations. Require an explicit choice
+    // before sending the next meeting to any of those workspaces.
+    if(enabled.length>1)for(const account of enabled)account.enabled=false;
+  }
   save(){return this.settings.save(this.accounts);}
   async replaceAccount(id,account){
     const before=this.accounts;
     this.accounts={...before};
+    if(account?.enabled){
+      for(const [other,stored] of Object.entries(this.accounts)){
+        if(other!==id && stored.enabled)this.accounts[other]={...stored,enabled:false};
+      }
+    }
     if(account)this.accounts[id]=account;
     else delete this.accounts[id];
     try{await this.save();}catch(error){this.accounts=before;throw error;}
@@ -43,28 +54,33 @@ class DocumentStore {
     }finally{this.busy=false;}
   }
   async start(id){
+    const active=Object.entries(this.accounts).find(([,account])=>account.enabled);
+    if(active)await this.create(id,...active);
+  }
+  async create(id,provider,account){
     const m=this.meeting(id);
-    await Promise.all(Object.entries(this.accounts).filter(([,account])=>account.enabled).map(async([provider,account])=>{
-      m.documents ||= {};
-      if(m.documents[provider])return;
-      const key=id+'/'+provider;
-      m.documents[provider]={status:'pending'};
-      this.pending.add(key);
-      try{
-        await this.persist();
-        const url=await createDocument(provider,account,m.title,()=>this.save());
-        m.documents[provider]={status:'ready',url};
-      }catch(error){
-        m.documents[provider]={status:'uncertain',message:error.message};
-      }finally{this.pending.delete(key);}
-      await this.persist();this.notify(id);
-    }));
+    m.documents ||= {};
+    if(m.documents[provider])return;
+    const key=id+'/'+provider;
+    m.documents[provider]={status:'pending'};
+    this.pending.add(key);
+    try{
+      await this.persist();
+      const url=await createDocument(provider,account,m.title,()=>this.save());
+      m.documents[provider]={status:'ready',url};
+    }catch(error){
+      m.documents[provider]={status:'uncertain',message:error.message};
+    }finally{this.pending.delete(key);}
+    await this.persist();this.notify(id);
   }
   async recover(id,provider,url,retry){
     const m=this.meeting(id);
     if(this.pending.has(id+'/'+provider)||!services[provider])throw new Error('文档操作进行中');
     if(url)m.documents[provider]={status:'ready',url:safeLink(provider,url)};
-    else if(retry){delete m.documents[provider];await this.start(id);}
+    else if(retry){
+      if(!this.accounts[provider])throw new Error('请先绑定原文档平台');
+      delete m.documents[provider];await this.create(id,provider,this.accounts[provider]);
+    }
     await this.persist();this.notify(id);
   }
   async open(id,provider){

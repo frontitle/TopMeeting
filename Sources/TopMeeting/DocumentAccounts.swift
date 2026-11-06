@@ -1,20 +1,30 @@
 import Foundation
 
 enum ExternalDocumentService: String, CaseIterable, Identifiable {
-    case google, notion, ding, tencent
+    case feishu, ding, tencent, google, notion
     var id: String { rawValue }
     var name: String {
         switch self {
+        case .feishu: return "飞书文档"
         case .google: return "Google Docs"
         case .notion: return "Notion"
         case .ding: return "钉钉文档"
         case .tencent: return "腾讯文档"
         }
     }
+    static func selected(in defaults: UserDefaults) -> Self? {
+        if let saved = defaults.string(forKey:"meetingDocumentPlatform") { return Self(rawValue:saved) }
+        let automatic = defaults.dictionary(forKey:"documentAutomatic") as? [String:Bool] ?? [:]
+        let enabled = allCases.filter {
+            $0 == .feishu ? defaults.bool(forKey:"feishuAutoSync") : automatic[$0.id] == true
+        }
+        return enabled.count == 1 ? enabled.first : nil
+    }
     var credential: String { "doc-account-" + rawValue }
     func verifiedURL(_ value: String) -> URL? {
         let hosts: [String]
         switch self {
+        case .feishu: return FeishuCLI.safeDocumentURL(value)
         case .google: hosts = ["docs.google.com"]
         case .notion: hosts = ["notion.so","notion.site"]
         case .ding: hosts = ["alidocs.com","dingtalk.com"]
@@ -90,9 +100,8 @@ extension MeetingStore {
         catch { meetings[index].documentLinks = before; throw error }
     }
     func startDocumentLinks(id: UUID) {
-        for service in ExternalDocumentService.allCases where documentAutomatic[service.id] == true {
-            Task { await createDocumentLink(service,id:id) }
-        }
+        guard let service = documentPlatform, service != .feishu, documentAutomatic[service.id] == true else { return }
+        Task { await createDocumentLink(service,id:id) }
     }
     func createDocumentLink(_ service: ExternalDocumentService,id: UUID) async {
         let key = id.uuidString + service.id
