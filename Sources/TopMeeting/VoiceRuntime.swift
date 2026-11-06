@@ -61,7 +61,7 @@ final class VoiceRuntime: @unchecked Sendable {
         let script = resources.appendingPathComponent("voice_engine/engine.py")
         guard FileManager.default.fileExists(atPath:runtime.path), FileManager.default.fileExists(atPath:script.path) else { throw Gateway.error("本构建未包含声纹引擎，请重新打包应用。") }
         process.executableURL = runtime
-        process.arguments = ["-u",script.path,resources.appendingPathComponent("voice_engine/models").path,profiles.path]
+        process.arguments = ["-I","-B","-u",script.path,resources.appendingPathComponent("voice_engine/models").path,profiles.path]
         process.standardInput = input; process.standardOutput = output; process.standardError = errors
         var env = ProcessInfo.processInfo.environment
         env["PYTHONDONTWRITEBYTECODE"] = "1"; env["PYTHONUNBUFFERED"] = "1"; env["PYTHONNOUSERSITE"] = "1"

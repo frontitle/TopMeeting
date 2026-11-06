@@ -26,7 +26,7 @@ TopMeeting is a local-first meeting assistant for macOS and Windows with **real-
 
 The Windows prerelease includes an unsigned per-user installer and a ZIP. Windows may display an unknown-publisher prompt. See the [Windows guide](apps/windows/README.md) for installation, model setup and document permissions.
 
-The macOS development target is macOS 15 or later. Build using Swift 6 and a macOS 26+ SDK. Full local packaging also requires Node.js 22+, the local Python 3.13 framework, voice dependencies and Feishu CLI.
+The macOS development target is macOS 15 or later. Build using Swift 6 and a macOS 26+ SDK. Build prerequisites include uv, Python 3.13 for the voice setup script, and npm for Feishu CLI. Packaging downloads a relocatable CPython and a checksum-pinned official Node.js binary for the build Mac’s architecture.
 
 ```sh
 swift build -c release
@@ -35,7 +35,7 @@ swift build -c release
 ./scripts/build-app.sh
 ```
 
-The ad-hoc signed development application is written to `dist/TopMeeting.app`. The voice runtime currently depends on the local Python framework.
+The ad-hoc signed development application is written to `dist/TopMeeting.app`. The bundle includes the Python standard library, voice wheels and Node.js. End users do not need Homebrew, Python or Node.js. The build checks native library paths before signing.
 
 ## Data and integrations
 

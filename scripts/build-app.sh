@@ -2,18 +2,13 @@
 set -euo pipefail
 cd "${0:A:h}/.."
 swift build -c release
-APP="$PWD/dist/TopMeeting.app"
+mkdir -p "$PWD/dist"
+stage=$(mktemp -d "$PWD/dist/.build-XXXXXXXX")
+trap 'rm -rf "$stage"' EXIT
+APP="$stage/TopMeeting.app"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp LICENSE NOTICE THIRD_PARTY_NOTICES.md "$APP/Contents/Resources/"
-mkdir -p "$APP/Contents/Resources/DocumentsRuntime"
-node -e 'if (Number(process.versions.node.split(".")[0]) < 22) process.exit(1)'
-cp -L "$(command -v node)" "$APP/Contents/Resources/DocumentsRuntime/node"
-NODE_PREFIX=$(node -p 'require("node:path").resolve(require("node:fs").realpathSync(process.execPath),"../..")')
-if [[ -f "$NODE_PREFIX/LICENSE" ]]; then
-    cp "$NODE_PREFIX/LICENSE" "$APP/Contents/Resources/DocumentsRuntime/NODE-LICENSE"
-else
-    curl -fsSL --retry 2 "https://raw.githubusercontent.com/nodejs/node/$(node -p 'process.version')/LICENSE" -o "$APP/Contents/Resources/DocumentsRuntime/NODE-LICENSE"
-fi
+./scripts/bundle-macos-runtimes.sh "$APP/Contents/Resources"
 cp packages/documents/macos-bridge.cjs packages/documents/document-services.cjs "$APP/Contents/Resources/DocumentsRuntime/"
 ICONSET="$PWD/.build/TopMeeting.iconset"
 mkdir -p "$ICONSET"
@@ -29,13 +24,6 @@ iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/TopMeeting.icns"
 mkdir -p "$APP/Contents/Resources/voice_engine/models"
 cp voice_engine/THIRD_PARTY.md voice_engine/model-checksums.txt "$APP/Contents/Resources/voice_engine/"
 rsync -a --exclude '__pycache__' voice_engine/engine.py "$APP/Contents/Resources/voice_engine/"
-rsync -a .voice-runtime/ "$APP/Contents/Resources/VoiceRuntime/"
-# Materialize the interpreter: an absolute symlink outside an app bundle fails
-# strict signature verification. Python's standard library/framework are still
-# a documented local-development dependency.
-cp -L .voice-runtime/bin/python3.13 .build/voice-python3.13
-rm "$APP/Contents/Resources/VoiceRuntime/bin/python3.13"
-cp .build/voice-python3.13 "$APP/Contents/Resources/VoiceRuntime/bin/python3.13"
 cp voice_engine/models/embedding.onnx "$APP/Contents/Resources/voice_engine/models/"
 mkdir -p "$APP/Contents/Resources/voice_engine/models/sherpa-onnx-pyannote-segmentation-3-0"
 cp voice_engine/models/sherpa-onnx-pyannote-segmentation-3-0/model.onnx voice_engine/models/sherpa-onnx-pyannote-segmentation-3-0/LICENSE "$APP/Contents/Resources/voice_engine/models/sherpa-onnx-pyannote-segmentation-3-0/"
@@ -61,7 +49,21 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 <key>NSHighResolutionCapable</key><true/>
 </dict></plist>
 PLIST
+python3 scripts/check-macos-runtime.py "$APP" --strip-build-rpaths
 codesign --force --sign - "$APP"
+codesign --verify --strict "$APP"
+# Atomically exchange complete bundles so a failed build preserves the working app.
+python3 - "$APP" "$PWD/dist/TopMeeting.app" <<'PYTHON'
+import ctypes, os, sys
+source, target = map(os.fsencode, sys.argv[1:])
+if os.path.exists(target):
+    libc = ctypes.CDLL(None, use_errno=True)
+    if libc.renamex_np(source, target, 2):  # RENAME_SWAP on Darwin
+        raise OSError(ctypes.get_errno(), "Could not replace application")
+else:
+    os.rename(source, target)
+PYTHON
+APP="$PWD/dist/TopMeeting.app"
 # In-place builds replace files inside Contents without changing the bundle
 # directory timestamp that Spotlight and IconServices use for invalidation.
 touch "$APP"

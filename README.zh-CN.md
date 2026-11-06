@@ -34,7 +34,7 @@ swift build -c release
 node --test packages/core/test/core.test.js
 ```
 
-完整开发应用打包还需要本地语音运行时与飞书 CLI：
+完整打包需要 uv、供语音准备脚本使用的 Python 3.13，以及安装飞书 CLI 所需的 npm。
 
 ```sh
 ./scripts/setup-voice.sh
@@ -42,7 +42,7 @@ node --test packages/core/test/core.test.js
 ./scripts/build-app.sh
 ```
 
-输出 `dist/TopMeeting.app`，使用本机 ad-hoc 签名。当前语音运行时依赖本机 Python 3.13 framework，尚非可直接分发到任意 Mac 的独立安装包。模型与运行时下载见脚本及第三方声明。
+输出 `dist/TopMeeting.app`，使用本机 ad-hoc 签名。应用按构建机架构内置可迁移的 Python、标准库、声纹依赖和经过校验的官方 Node.js，运行时无需安装 Homebrew。打包会检查原生动态库路径。模型与运行时下载见脚本及第三方声明。
 
 `check.sh` 使用本机模拟服务，不使用真实账户或消耗模型额度。界面可用隔离示例数据渲染：
 
