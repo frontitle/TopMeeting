@@ -6,10 +6,11 @@ listening.onState(state=>{
   document.querySelector('#speaker').textContent=state.speaker||'';
   document.querySelector('#caption').textContent=Array.from(state.text||'…').slice(-41).join('');
   document.querySelector('time').textContent=[Math.floor(state.duration/60),Math.floor(state.duration%60)].map(v=>String(v).padStart(2,'0')).join(':');
-  document.querySelector('button').textContent=state.paused?'▶':'Ⅱ';
-  document.querySelector('button').ariaLabel=state.paused?'继续':'暂停';
+  document.querySelector('#pause').textContent=state.paused?'▶':'Ⅱ';
+  document.querySelector('#pause').ariaLabel=state.paused?'继续':'暂停';
   history=[...history.slice(1),state.paused?0:state.level];
   Array.from(wave.children).forEach((bar,i)=>bar.style.height=(3+19*Math.min(1,history[i]*5))+'px');
 });
-document.body.ondblclick=()=>listening.open();
-document.querySelector('button').onclick=()=>listening.pause();
+document.body.ondblclick=event=>{if(!event.target.closest('button'))listening.open();};
+document.querySelector('#pause').onclick=()=>listening.pause();
+document.querySelector('#end').onclick=()=>listening.end();

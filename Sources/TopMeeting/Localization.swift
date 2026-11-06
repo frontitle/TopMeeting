@@ -198,6 +198,7 @@ enum L10n {
         "纠正这段发言":"Edit paragraph",
         "纪要语言":"Summary language",
         "绑定账号":"Connect account",
+        "结束":"End",
         "结束并总结":"Finish and summarize",
         "结构化纪要":"Structured notes",
         "继续录音":"Resume recording",

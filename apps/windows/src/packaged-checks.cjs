@@ -46,8 +46,13 @@ async function checkWorkspace(win,speech,dataDirectory,installedModels) {
   await pressPause(true);await pressPause(false);
   await panel.webContents.executeJavaScript("document.body.dispatchEvent(new MouseEvent('dblclick',{bubbles:true}))");
   assert.ok(win.isVisible(),'Double-click did not open the main window');
+  await pressPause(true);
+  await panel.webContents.executeJavaScript("document.querySelector('#end').click()");
+  for(let i=0;i<150 && await win.webContents.executeJavaScript('!!recorder || busy');i++){
+    await new Promise(resolve=>setTimeout(resolve,100));
+  }
+  assert.ok(!panel.isVisible(),'Ending the paused recording should close the listening panel');
   await ui(async()=>{
-    await finish();
     const saved=(await api.load()).meetings[0];
     if(!saved.lines.some(line=>Number.isFinite(line.start)&&line.text))throw Error('Missing local transcript');
     $('people').click();

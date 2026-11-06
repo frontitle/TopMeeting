@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('api',{
  recoverDocument:(id,provider,url,retry)=>ipcRenderer.invoke('recover-document',id,provider,url,retry),
  onUpdate:handler=>ipcRenderer.on('meeting-updated',(_,id)=>handler(id)),
  onSpeechError:handler=>ipcRenderer.on('speech-error',(_,message)=>handler(message)),
+ onEndListening:handler=>ipcRenderer.on('end-listening',()=>handler()),
  onTogglePause:handler=>ipcRenderer.on('toggle-listening-pause',()=>handler()),
  audio:(id,index)=>ipcRenderer.invoke('audio',id,index),
  load:()=>ipcRenderer.invoke('load'),create:()=>ipcRenderer.invoke('create'),edit:(id,patch)=>ipcRenderer.invoke('edit',id,patch),trash:(id,value)=>ipcRenderer.invoke('trash',id,value),settings:config=>ipcRenderer.invoke('settings',config),

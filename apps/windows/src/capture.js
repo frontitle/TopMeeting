@@ -45,7 +45,13 @@ async function begin(local=true){
     throw error;
   }finally{busy=false;render();}
 }
-async function togglePause(){
+let pauseChange;
+function togglePause(){
+  if(!recorder||busy||pauseChange)return pauseChange;
+  pauseChange=changePause().finally(()=>{pauseChange=null;});
+  return pauseChange;
+}
+async function changePause(){
   if(!recorder||busy)return;
   if(paused){await context?.resume();recorder.resume();started=Date.now();}
   else{await context?.suspend();recorder.pause();elapsed+=(Date.now()-started)/1000;}
@@ -54,6 +60,7 @@ async function togglePause(){
 async function finish(){
   if(!recorder||busy)return;
   busy=true;render();
+  try{await pauseChange;}catch(error){notice(error.message);}
   if(!paused)elapsed+=(Date.now()-started)/1000;
   clearInterval(timer);
   try{
@@ -131,6 +138,7 @@ $('hidePrepare').onclick=()=>{guideMeeting=null;render();$('record').focus();};
 $('connectDocs').onclick=()=>$('accounts').click();
 $('hideDocHint').onclick=()=>{localStorage.setItem('documentHintDismissed','1');render();};
 $('pause').onclick=()=>action(togglePause);api.onTogglePause(()=>action(togglePause));
+api.onEndListening(()=>action(finish));
 api.onSpeechError(message=>{captureWarning=message;notice(message);});
 api.onUpdate(id=>{if(id!==selected)return;if(document.activeElement?.closest('.line, .context, #title'))return;action(reload);});
 $('models').onclick=()=>action(installModels);

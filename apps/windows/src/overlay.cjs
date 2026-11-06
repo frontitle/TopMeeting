@@ -6,6 +6,7 @@ function listeningPanel(main){
   ipcMain.on('overlay-control',(event,action)=>{
     if(!panel || event.sender!==panel.webContents) return;
     if(action==='open'){if(main.isMinimized()) main.restore();main.show();main.focus();}
+    if(action==='end') main.webContents.send('end-listening');
     if(action==='pause') main.webContents.send('toggle-listening-pause');
   });
   return {

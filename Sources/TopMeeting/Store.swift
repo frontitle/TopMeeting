@@ -123,7 +123,7 @@ import AVFoundation
         selected = meetings.first(where:{$0.deletedAt == nil})?.id
         capture.onText = { [weak self] id,text,final,time in
             guard let self, self.recording else { return }
-            if !text.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty { self.liveCaption = text }
+            if !self.recordingPaused && !text.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty { self.liveCaption = text }
             self.update(persist:final) { $0.acceptSpeech(id:id,text:text,final:final,time:self.offset + time) }
         }
         capture.onWords = { [weak self] id,words in
@@ -143,7 +143,7 @@ import AVFoundation
             catch { voiceStatus = error.localizedDescription }
         }
         capture.onLevel = { [weak self] level in
-            guard let self else { return }
+            guard let self, !self.recordingPaused else { return }
             self.inputLevel = level
             self.inputLevels = Array((self.inputLevels + [level]).suffix(28))
         }

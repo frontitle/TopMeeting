@@ -9,6 +9,8 @@ func clock(_ seconds: Double) -> String { String(format:"%02d:%02d",Int(seconds)
     @Published var elapsed: Double = 183
     @Published var inputLevels: [Double] = (0..<28).map { -60 + Double(($0 * 11) % 40) }
     func toggleRecordingPause() { recordingPaused.toggle() }
+    var ends = 0
+    func toggleRecording() { ends += 1; ending = true }
     @Published var liveCaption = "这是一段测试字幕，检查可拖动区域。"
     @Published var inputLevel = -36.0
 }
@@ -30,14 +32,26 @@ func clock(_ seconds: Double) -> String { String(format:"%02d:%02d",Int(seconds)
         for point in [NSPoint(x:30,y:30),NSPoint(x:210,y:65),NSPoint(x:300,y:65)] {
             precondition(host.hitTest(point) === host,"SwiftUI swallowed the native drag target")
         }
-        let button = host.subviews.compactMap { $0 as? NSButton }.first!
-        precondition(button.frame.midX > host.bounds.width-60,"Pause button was not placed at trailing edge")
-        let center = host.convert(NSPoint(x:button.bounds.midX,y:button.bounds.midY),from:button)
-        precondition(host.hitTest(center) === button,"Drag host swallowed pause button")
-        button.performClick(nil); precondition(store.recordingPaused,"Pause button failed")
-        button.performClick(nil); precondition(!store.recordingPaused,"Resume button failed")
-        store.ending = true; precondition(!button.isEnabled,"Pause remained enabled while finishing")
-        store.ending = false
+        let buttons = host.subviews.compactMap { $0 as? NSButton }
+        let button = buttons.first { $0.image != nil }!
+        let end = buttons.first { $0 !== button }!
+        func click(_ control: NSButton) {
+            let center = control.convert(NSPoint(x:control.bounds.midX,y:control.bounds.midY),to:nil)
+            let root = host.superview!
+            precondition(root.hitTest(root.convert(center,from:nil)) === control,"Window routed the click to the drag surface")
+            func event(_ type: NSEvent.EventType) -> NSEvent {
+                NSEvent.mouseEvent(with:type,location:center,modifierFlags:[],timestamp:ProcessInfo.processInfo.systemUptime,
+                                   windowNumber:panel.windowNumber,context:nil,eventNumber:1,clickCount:1,pressure:1)!
+            }
+            precondition(control.acceptsFirstMouse(for:event(.leftMouseDown)))
+            panel.sendEvent(event(.leftMouseDown))
+            panel.sendEvent(event(.leftMouseUp))
+        }
+        click(button); precondition(store.recordingPaused,"Pause failed")
+        click(button); precondition(!store.recordingPaused,"Resume failed")
+        click(button); click(end)
+        precondition(store.ends == 1 && !end.isEnabled && !button.isEnabled,"End from pause failed")
+        store.recordingPaused = false; store.ending = false
         let doubleClick = NSEvent.mouseEvent(with:.leftMouseDown,location:.zero,modifierFlags:[],timestamp:0,windowNumber:panel.windowNumber,context:nil,eventNumber:2,clickCount:2,pressure:1)!
         host.mouseDown(with:doubleClick); precondition(opened == 1,"Double click did not open main window")
         if CommandLine.arguments.count > 1 {
