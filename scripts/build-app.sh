@@ -47,14 +47,14 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
-<key>CFBundleIconFile</key><string>TopMeeting</string>
+<key>CFBundleIconFile</key><string>TopMeeting.icns</string>
 <key>CFBundleName</key><string>TopMeeting</string>
 <key>CFBundleDisplayName</key><string>TopMeeting</string>
 <key>CFBundleIdentifier</key><string>com.topmeeting.mac</string>
 <key>CFBundleExecutable</key><string>TopMeeting</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleShortVersionString</key><string>0.14.0</string>
-<key>CFBundleVersion</key><string>19</string>
+<key>CFBundleVersion</key><string>20</string>
 <key>LSMinimumSystemVersion</key><string>15.0</string>
 <key>NSMicrophoneUsageDescription</key><string>录制会议声音，并在本机生成会议实录。</string>
 <key>NSSpeechRecognitionUsageDescription</key><string>使用本机语音识别生成实时字幕。</string>

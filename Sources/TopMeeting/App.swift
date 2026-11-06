@@ -2,7 +2,18 @@ import SwiftUI
 import UniformTypeIdentifiers
 typealias ViewState<Value> = SwiftUI.State<Value>
 
+private enum AppArtwork {
+    static let icon = Bundle.main.url(forResource:"TopMeeting",withExtension:"icns")
+        .flatMap { NSImage(contentsOf:$0) }
+}
+
 @main struct TopMeetingApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+    final class AppDelegate: NSObject, NSApplicationDelegate {
+        func applicationDidFinishLaunching(_ notification: Notification) {
+            if let icon = AppArtwork.icon { NSApp.applicationIconImage = icon }
+        }
+    }
     @Environment(\.openWindow) private var openWindow
     @StateObject private var store = MeetingStore()
     @StateObject private var listeningPanel = ListeningPanelController()
@@ -41,7 +52,10 @@ struct Workspace: View {
         NavigationSplitView {
             VStack(alignment:.leading, spacing:18) {
                 HStack(spacing:10) {
-                    Image(nsImage:NSApp.applicationIconImage).resizable().frame(width:36,height:36)
+                    if let icon = AppArtwork.icon {
+                        Image(nsImage:icon).renderingMode(.original).resizable()
+                            .scaledToFit().frame(width:36,height:36).accessibilityHidden(true)
+                    }
                     Text("TopMeeting").font(.system(size:19, weight:.semibold))
 
                 }.padding(.top,20).padding(.horizontal,18)
