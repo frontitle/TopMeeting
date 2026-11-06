@@ -1,12 +1,25 @@
 #!/bin/zsh
 set -euo pipefail
 cd "${0:A:h}/.."
-swift build -c release
+sparkle="$PWD/.build/sparkle-2.10.1"
+mkdir -p "$sparkle"
+archive="$sparkle/Sparkle-2.10.1.tar.xz"
+if [[ ! -f "$archive" ]]; then
+    curl -fLsS --retry 2 https://github.com/sparkle-project/Sparkle/releases/download/2.10.1/Sparkle-2.10.1.tar.xz -o "$archive.partial"
+    mv "$archive.partial" "$archive"
+fi
+print -r -- "1a856d2a9edb8e628de88121d7be04cf0e2167f8641650b78fca00b14244cf27  $archive" | shasum -a 256 -c -
+tar -xf "$archive" -C "$sparkle"
+swift build -c release -Xswiftc -F -Xswiftc "$sparkle" -Xlinker -F -Xlinker "$sparkle" \
+    -Xlinker -rpath -Xlinker '@executable_path/../Frameworks'
 mkdir -p "$PWD/dist"
 stage=$(mktemp -d "$PWD/dist/.build-XXXXXXXX")
 trap 'rm -rf "$stage"' EXIT
 APP="$stage/TopMeeting.app"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+mkdir -p "$APP/Contents/Frameworks"
+ditto "$sparkle/Sparkle.framework" "$APP/Contents/Frameworks/Sparkle.framework"
+cp "$sparkle/LICENSE" "$APP/Contents/Resources/Sparkle-LICENSE"
 cp LICENSE NOTICE THIRD_PARTY_NOTICES.md "$APP/Contents/Resources/"
 ./scripts/bundle-macos-runtimes.sh "$APP/Contents/Resources"
 cp packages/documents/macos-bridge.cjs packages/documents/document-services.cjs "$APP/Contents/Resources/DocumentsRuntime/"
@@ -41,14 +54,20 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 <key>CFBundleIdentifier</key><string>com.topmeeting.mac</string>
 <key>CFBundleExecutable</key><string>TopMeeting</string>
 <key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleShortVersionString</key><string>0.14.0</string>
-<key>CFBundleVersion</key><string>21</string>
+<key>CFBundleShortVersionString</key><string>0.15.0</string>
+<key>CFBundleVersion</key><string>22</string>
+<key>SUFeedURL</key><string>https://raw.githubusercontent.com/frontitle/TopMeeting/main/docs/updates/macos-ARCH.xml</string>
+<key>SUPublicEDKey</key><string>59Q0D6Qo1KWQKN5dGg+OZDk83WHDlX4p6FGm00oFBbc=</string>
+<key>SUVerifyUpdateBeforeExtraction</key><true/>
+<key>SUEnableAutomaticChecks</key><true/>
+<key>SUAutomaticallyUpdate</key><false/>
 <key>LSMinimumSystemVersion</key><string>15.0</string>
 <key>NSMicrophoneUsageDescription</key><string>录制会议声音，并在本机生成会议实录。</string>
 <key>NSSpeechRecognitionUsageDescription</key><string>使用本机语音识别生成实时字幕。</string>
 <key>NSHighResolutionCapable</key><true/>
 </dict></plist>
 PLIST
+sed -i '' "s/macos-ARCH.xml/macos-$(uname -m).xml/" "$APP/Contents/Info.plist"
 python3 scripts/check-macos-runtime.py "$APP" --strip-build-rpaths
 codesign --force --sign - "$APP"
 codesign --verify --strict "$APP"

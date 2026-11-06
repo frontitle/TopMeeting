@@ -419,6 +419,10 @@ import AVFoundation
         UserDefaults.standard.set(summaryLanguage,forKey:"summaryLanguage")
         if !recording { update { $0.summaryLanguage = summaryLanguage } }
     }
+    var canRestartForUpdate: Bool {
+        !recording && !starting && !ending && !busy && !chatBusy && summaryTasks.isEmpty &&
+            documentPending.isEmpty && feishuBusy.isEmpty && !replayingVoices
+    }
     func toggleRecordingPause() {
         guard recording, !starting, !ending else { return }
         if recordingPaused {

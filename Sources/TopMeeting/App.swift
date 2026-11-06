@@ -9,11 +9,18 @@ private enum AppArtwork {
 @main struct TopMeetingApp: App {
     @Environment(\.openWindow) private var openWindow
     @StateObject private var store = MeetingStore()
+    #if canImport(Sparkle)
+    @StateObject private var softwareUpdate = SoftwareUpdate()
+    #endif
     @StateObject private var listeningPanel = ListeningPanelController()
     var body: some Scene {
         Window("TopMeeting", id:"main") {
             Workspace().environmentObject(store).environment(\.locale,Locale(identifier:store.interfaceLanguage)).frame(minWidth:1080, minHeight:720)
-                .onAppear { listeningPanel.connect(store,showMain: {
+                .onAppear {
+                    #if canImport(Sparkle)
+                    softwareUpdate.start(store:store)
+                    #endif
+                    listeningPanel.connect(store,showMain: {
                     openWindow(id:"main")
                     DispatchQueue.main.async {
                         if let main = NSApplication.shared.windows.first(where:{ $0.title == "TopMeeting" }) { main.deminiaturize(nil); main.makeKeyAndOrderFront(nil) }
@@ -21,6 +28,14 @@ private enum AppArtwork {
                     }
                 }); NSApplication.shared.setActivationPolicy(.regular); NSApplication.shared.activate(ignoringOtherApps:true) }
         }.windowStyle(.automatic).windowToolbarStyle(.unified).defaultSize(width:1380, height:880)
+        #if canImport(Sparkle)
+        .commands {
+            CommandGroup(after:.appInfo) {
+                Button(L10n.tr("检查更新…"),action:softwareUpdate.check)
+                    .disabled(!softwareUpdate.canCheck || !store.canRestartForUpdate)
+            }
+        }
+        #endif
         Settings { ConnectionSettings().environmentObject(store).environment(\.locale,Locale(identifier:store.interfaceLanguage)) }
     }
 }

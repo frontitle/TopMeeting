@@ -1,6 +1,6 @@
 # TopMeeting for Windows
 
-[简体中文](README.zh-CN.md) · [Installer, ZIP and SHA-256 checksums](https://github.com/frontitle/TopMeeting/releases/tag/windows-v0.14.0-preview.1)
+[简体中文](README.zh-CN.md) · [Installer, ZIP and SHA-256 checksums](https://github.com/frontitle/TopMeeting/releases/tag/windows-v0.15.0-preview.1)
 
 ## Your first meeting
 

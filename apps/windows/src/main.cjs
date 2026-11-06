@@ -41,7 +41,7 @@ if(primaryInstance) app.whenReady().then(async()=>{
  session.defaultSession.setPermissionCheckHandler((contents,permission)=>contents===win?.webContents && contents.getURL()===ui && permission==='media');
  win=new BrowserWindow({width:1400,height:920,minWidth:1000,minHeight:680,show:!smoke,backgroundColor:'#f5f7fc',icon:path.join(__dirname,'logo.png'),webPreferences:{preload:path.join(__dirname,'preload.cjs'),nodeIntegration:false,contextIsolation:true,sandbox:true}});
  win.setMenuBarVisibility(false);win.webContents.setWindowOpenHandler(()=>({action:'deny'}));win.webContents.on('will-navigate',e=>e.preventDefault());
- let closing=false, flushing=false;
+ let closing=false, flushing=false, installingUpdate=false;
  win.on('close',event=>{
    if(closing)return;
    event.preventDefault();
@@ -169,7 +169,7 @@ if(primaryInstance) app.whenReady().then(async()=>{
    await modelSettings.save(updated);config=updated;return publicConfig();
  });
  bind('record-start',async(id,local=true)=>{
-   if(active||inFlight.has(id))throw new Error('会议正在使用中');
+   if(installingUpdate||active||inFlight.has(id))throw new Error('会议正在使用中');
    const m=meeting(id),file=crypto.randomUUID()+'.webm';
    const capturing={id,file,local:local!==false};
    active=capturing;
@@ -216,7 +216,23 @@ if(primaryInstance) app.whenReady().then(async()=>{
  });
  bind('audio',async(id,index)=>{const m=meeting(id);if(active?.id===id)throw new Error('请先结束录音');const file=m.recordings[index];if(!file)throw new Error('录音不存在');return new Uint8Array(await fs.readFile(path.join(root,'audio',file)));});
  bind('export',async(id)=>{const m=meeting(id);const result=await dialog.showSaveDialog(win,{defaultPath:'meeting.md',filters:[{name:'Markdown',extensions:['md']}]});if(!result.canceled)await fs.writeFile(result.filePath,`# ${m.title}\n\n${m.notes}\n\n## 实录\n\n${m.lines.map(l=>`**${l.speaker}** ${l.text}`).join('\n\n')}`);});
+ const installed=app.isPackaged && require('node:fs').existsSync(path.join(path.dirname(process.execPath),'Uninstall TopMeeting.exe'));
+ const updates=installed && require('./updates.cjs').desktopUpdates({
+   version:app.getVersion(),updater:require('electron-updater').autoUpdater,
+   notify:state=>{if(!win.isDestroyed())win.webContents.send('update-status',state);},
+   prepareInstall:async()=>{
+     if(active||inFlight.size||documents.busy||documents.pending.size||flushing){
+       await dialog.showMessageBox(win,{message:'会议处理结束后即可安装更新。'});return false;
+     }
+     installingUpdate=true;await persist();closing=true;return true;
+   },
+   releaseInstall:()=>{if(installingUpdate){installingUpdate=false;closing=false;}}
+ });
+ const portable={phase:'portable',version:app.getVersion()};
+ bind('update-status',()=>updates?updates.status():portable);
+ bind('update-action',()=>updates?updates.perform():portable);
  await win.loadFile(path.join(__dirname,'index.html'));
+ if(updates && !smoke)setTimeout(()=>updates.status().phase==='idle' && updates.perform(),15000).unref();
  if(meetingFile.recovered)startupNotices.push('已从上一份快照恢复会议，原件保存在本机。');
  if(startupNotices.length)win.webContents.send('speech-error',startupNotices.join(' '));
  if(smoke){try{const result=await win.webContents.executeJavaScript(`(async()=>{await window.api.create();const data=await window.api.load();if(data.meetings.length!==1)throw Error('Storage failure');await window.api.edit(data.meetings[0].id,{title:'Synthetic smoke fixture',lines:[{text:'Release check',speaker:'Test'}]});await window.api.trash(data.meetings[0].id,true);await window.api.trash(data.meetings[0].id,false);await window.api.start(data.meetings[0].id,false);await window.api.chunk(new Uint8Array([1,2,3]));await window.api.stop(2);const audio=await window.api.audio(data.meetings[0].id,0);if(audio.length!==3||audio[2]!==3)throw Error('Audio persistence failed');if(!document.querySelector('#record'))throw Error('UI missing');return 'PASS';})()`);await win.webContents.executeJavaScript('reload()');

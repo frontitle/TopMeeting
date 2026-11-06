@@ -1,7 +1,7 @@
 {
   "name": "topmeeting-windows",
   "productName": "TopMeeting",
-  "version": "0.14.0",
+  "version": "0.15.0",
   "description": "TopMeeting Windows preview \u2014 local meetings and configurable AI summaries",
   "author": "TopMeeting contributors",
   "license": "Apache-2.0",
@@ -61,8 +61,16 @@
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
-      "artifactName": "TopMeeting-${version}-windows-${arch}-setup.${ext}"
+      "artifactName": "TopMeeting-${version}-windows-${arch}-setup.${ext}",
+      "differentialPackage": false
     },
-    "publish": null
+    "publish": {
+      "provider": "generic",
+      "url": "https://github.com/frontitle/TopMeeting/releases/download/windows-v0.15.0-preview.1/"
+    }
+  },
+  "dependencies": {
+    "electron-updater": "6.8.11",
+    "semver": "7.8.6"
   }
 }

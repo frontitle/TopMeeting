@@ -12,7 +12,7 @@ const path=require('node:path'),assert=require('node:assert/strict');
   navigator.mediaDevices.getUserMedia=async()=>{fixture.mic++;throw Object.assign(new Error('denied'),{name:'NotAllowedError'});};
   function create(){const m={id:crypto.randomUUID(),title:'产品会议',date:new Date().toISOString(),lines:[],notes:'',recordings:[],duration:0};fixture.meetings.unshift(m);return m;}
   window.api={load:async()=>structuredClone(fixture),create:async()=>create(),checkModels:async()=>fixture.installed,
-    installModels:async()=>{if(fixture.fail)throw Error('network');fixture.installed=true;},onModelProgress:()=>{},onDelta:()=>{},onUpdate:()=>{},onEndListening:()=>{},onTogglePause:()=>{},onSpeechError:()=>{},
+    installModels:async()=>{if(fixture.fail)throw Error('network');fixture.installed=true;},onModelProgress:()=>{},onDelta:()=>{},onUpdate:()=>{},onUpdateStatus:()=>{},updateStatus:async()=>({phase:'idle',version:'test'}),onEndListening:()=>{},onTogglePause:()=>{},onSpeechError:()=>{},
     trash:async(id,val)=>fixture.meetings.find(m=>m.id===id).deletedAt=val,edit:async(id,patch)=>Object.assign(fixture.meetings.find(m=>m.id===id),patch)};
  });
  await page.goto(require('node:url').pathToFileURL(path.join(root,'apps/windows/src/index.html')).href);

@@ -10,7 +10,7 @@ TopMeeting 是面向 macOS 和 Windows 的本地优先会议助手，支持实�
 
 ## Windows 预览版下载
 
-[Windows x64 安装包与 ZIP](https://github.com/frontitle/TopMeeting/releases/tag/windows-v0.14.0-preview.1)。首次下载模型后可离线实时转写、自动匹配声纹。悬浮窗支持暂停和继续。飞书、钉钉、腾讯文档、Google Docs 和 Notion 可在开会时建档并提供链接。详见 [Windows 能力说明](apps/windows/README.zh-CN.md)。
+[Windows x64 安装包与 ZIP](https://github.com/frontitle/TopMeeting/releases/tag/windows-v0.15.0-preview.1)。首次下载模型后可离线实时转写、自动匹配声纹。悬浮窗支持暂停和继续。飞书、钉钉、腾讯文档、Google Docs 和 Notion 可在开会时建档并提供链接。详见 [Windows 能力说明](apps/windows/README.zh-CN.md)。
 
 ## 当前能力
 

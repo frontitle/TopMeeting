@@ -61,6 +61,10 @@ jobs:
         shell: pwsh
         run: |
           Get-ChildItem release -File | Where-Object { $_.Extension -in '.exe','.zip' } | ForEach-Object { $hash = Get-FileHash $_.FullName -Algorithm SHA256; "$($hash.Hash.ToLower())  $($_.Name)" } | Set-Content release/SHA256SUMS.txt
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $installer = Get-Item "release/TopMeeting-$version-windows-x64-setup.exe"
+          $sha = [Convert]::ToBase64String([Convert]::FromHexString((Get-FileHash $installer.FullName -Algorithm SHA512).Hash))
+          @("version: $version", "files:", "  - url: $($installer.Name)", "    sha512: $sha", "    size: $($installer.Length)", "path: $($installer.Name)", "sha512: $sha") | Set-Content release/latest.yml -Encoding utf8NoBOM
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: TopMeeting-Windows-x64
@@ -68,5 +72,6 @@ jobs:
             apps/windows/release/*.exe
             apps/windows/release/*.zip
             apps/windows/release/SHA256SUMS.txt
+            apps/windows/release/latest.yml
           if-no-files-found: error
           retention-days: 30

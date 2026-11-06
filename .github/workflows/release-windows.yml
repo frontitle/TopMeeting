@@ -51,11 +51,11 @@ jobs:
           tag="windows-v${version}-preview.1"
           setup="assets/TopMeeting-${version}-windows-x64-setup.exe"
           zip="assets/TopMeeting-${version}-windows-x64.zip"
-          test -s "$setup" && test -s "$zip"
+          test -s "$setup" && test -s "$zip" && test -s assets/latest.yml
           gh release view "$tag" --json isDraft,targetCommitish > /tmp/draft.json
           python3 - <<'PYDRAFT'
           import json, os
           d = json.load(open('/tmp/draft.json'))
           assert d['isDraft'] and d['targetCommitish'] == os.environ['BUILD_SHA']
           PYDRAFT
-          gh release upload "$tag" "$setup" "$zip" assets/SHA256SUMS.txt --clobber
+          gh release upload "$tag" "$setup" "$zip" assets/SHA256SUMS.txt assets/latest.yml --clobber

@@ -1,5 +1,7 @@
 const {contextBridge,ipcRenderer}=require('electron');
 contextBridge.exposeInMainWorld('api',{
+ updateStatus:()=>ipcRenderer.invoke('update-status'),updateAction:()=>ipcRenderer.invoke('update-action'),
+ onUpdateStatus:handler=>ipcRenderer.on('update-status',(_,state)=>handler(state)),
  checkModels:()=>ipcRenderer.invoke('check-models'),onModelProgress:handler=>ipcRenderer.on('model-progress',(_,count,total)=>handler(count,total)),
  installModels:()=>ipcRenderer.invoke('install-models'), pcm:samples=>ipcRenderer.invoke('pcm',samples),
  overlay:(paused,duration)=>ipcRenderer.invoke('overlay-state',paused,duration),

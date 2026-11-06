@@ -1,6 +1,6 @@
 # TopMeeting
 
-[简体中文](README.zh-CN.md) · [Windows download](https://github.com/frontitle/TopMeeting/releases/tag/windows-v0.14.0-preview.1) · [Contributing](CONTRIBUTING.md)
+[简体中文](README.zh-CN.md) · [Windows download](https://github.com/frontitle/TopMeeting/releases/tag/windows-v0.15.0-preview.1) · [Contributing](CONTRIBUTING.md)
 
 TopMeeting is a local-first meeting assistant for macOS and Windows with **real-time speech-to-text and offline speaker diarization**. Put one microphone on the table and follow a conversation as an editable, speaker-attributed transcript.
 

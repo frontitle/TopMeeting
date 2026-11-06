@@ -153,6 +153,7 @@ enum L10n {
         "标记 / 合并":"Name / merge",
         "标记或合并说话人":"Name or merge speakers",
         "核对后允许重试…":"Verify and allow retry…",
+        "检查更新…":"Check for Updates…",
         "检查连接":"Check connection",
         "模型名称":"Model name",
         "模型扩展":"Model extension",
