@@ -1,7 +1,7 @@
 {
   "name": "topmeeting-windows",
   "productName": "TopMeeting",
-  "version": "0.15.0",
+  "version": "0.15.1",
   "description": "TopMeeting Windows preview \u2014 local meetings and configurable AI summaries",
   "author": "TopMeeting contributors",
   "license": "Apache-2.0",
@@ -66,7 +66,7 @@
     },
     "publish": {
       "provider": "generic",
-      "url": "https://github.com/frontitle/TopMeeting/releases/download/windows-v0.15.0-preview.1/"
+      "url": "https://github.com/frontitle/TopMeeting/releases/download/windows-v0.15.1-preview.1/"
     }
   },
   "dependencies": {

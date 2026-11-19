@@ -1,6 +1,6 @@
 const {contextBridge,ipcRenderer}=require('electron');
 contextBridge.exposeInMainWorld('api',{
- updateStatus:()=>ipcRenderer.invoke('update-status'),updateAction:()=>ipcRenderer.invoke('update-action'),
+ updateStatus:()=>ipcRenderer.invoke('update-status'),updateAction:action=>ipcRenderer.invoke('update-action',action),
  onUpdateStatus:handler=>ipcRenderer.on('update-status',(_,state)=>handler(state)),
  checkModels:()=>ipcRenderer.invoke('check-models'),onModelProgress:handler=>ipcRenderer.on('model-progress',(_,count,total)=>handler(count,total)),
  installModels:()=>ipcRenderer.invoke('install-models'), pcm:samples=>ipcRenderer.invoke('pcm',samples),
@@ -17,6 +17,6 @@ contextBridge.exposeInMainWorld('api',{
  onTogglePause:handler=>ipcRenderer.on('toggle-listening-pause',()=>handler()),
  audio:(id,index)=>ipcRenderer.invoke('audio',id,index),
  load:()=>ipcRenderer.invoke('load'),create:()=>ipcRenderer.invoke('create'),edit:(id,patch)=>ipcRenderer.invoke('edit',id,patch),trash:(id,value)=>ipcRenderer.invoke('trash',id,value),settings:config=>ipcRenderer.invoke('settings',config),
- start:(id,local=true)=>ipcRenderer.invoke('record-start',id,local),chunk:bytes=>ipcRenderer.invoke('record-chunk',bytes),stop:duration=>ipcRenderer.invoke('record-stop',duration),summarize:id=>ipcRenderer.invoke('summarize',id),export:id=>ipcRenderer.invoke('export',id),
+ start:(id,local=true)=>ipcRenderer.invoke('record-start',id,local),chunk:(bytes,offset=0)=>ipcRenderer.invoke('record-chunk',bytes,offset),stop:duration=>ipcRenderer.invoke('record-stop',duration),summarize:id=>ipcRenderer.invoke('summarize',id),export:id=>ipcRenderer.invoke('export',id),
  onDelta:handler=>ipcRenderer.on('summary-delta',(_,data)=>handler(data))
 });

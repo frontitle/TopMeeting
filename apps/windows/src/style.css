@@ -85,6 +85,7 @@ dialog label input,dialog label select{margin-top:5px}
 #notes h3:first-child{margin-top:0;padding-top:0;border-top:0}
 #notes p{margin:5px 0}
 .line button{opacity:0}
+.line .passage-time{float:none;opacity:1;color:var(--accent);font-variant-numeric:tabular-nums}
 .line:hover button,.line:focus-within button{opacity:1}
 @media(hover:none){.line button{opacity:1}}
 

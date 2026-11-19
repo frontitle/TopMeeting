@@ -5,6 +5,11 @@ const assert = require('node:assert/strict');
 async function checkWorkspace(win,speech,dataDirectory,installedModels) {
   const path=require('node:path');
   const ui=fn=>win.webContents.executeJavaScript('('+fn.toString()+')()');
+  if (process.env.TOPMEETING_SMOKE_INSTALLED) {
+    const update = await ui(() => api.updateStatus());
+    assert.equal(update.phase, 'idle', 'Installed app must expose the updater');
+    assert.equal(update.action, 'check');
+  }
   speech.models=path.join(dataDirectory,'empty-model-library');
   await ui(async()=>{
     const real=navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
@@ -24,6 +29,21 @@ async function checkWorkspace(win,speech,dataDirectory,installedModels) {
     $('settings').click();if(!$('dialog').open)throw Error('Settings unavailable');$('close').click();
     const saved=current();if(saved.lines.length!==1 || saved.recordings.length!==2)throw Error('Audio-only changed the transcript');
   });
+
+  const beforeRetry=await ui(async()=>{
+    const m=current();
+    await api.start(m.id,false);
+    await api.chunk(Uint8Array.of(1,2,3),0);
+    return m.duration;
+  });
+  const fs=require('node:fs/promises'),history=path.join(dataDirectory,'meetings.json');
+  await fs.rename(history,history+'.test');
+  try{
+    await assert.rejects(ui(()=>api.stop(7)),/会议文件/);
+  }finally{await fs.rename(history+'.test',history);}
+  await ui(()=>api.stop(7));
+  const retried=await ui(async()=>{await reload();return current().duration;});
+  assert.equal(retried,beforeRetry+7,'Retrying persistence must count the recording exactly once');
 
   speech.models=installedModels;
   await ui(async()=>{

@@ -20,7 +20,31 @@ actor FeishuMock {
     static func check(_ value: @autoclosure () -> Bool, _ message: String) throws {
         if !value() { throw NSError(domain:"CoreChecks",code:1,userInfo:[NSLocalizedDescriptionKey:message]) }
     }
+    // Run in a child process so the write limit only applies to the fixture.
+    static func checkLimitedRecording(at url: URL) throws {
+        signal(SIGXFSZ, SIG_IGN)
+        var limit = rlimit()
+        try check(getrlimit(RLIMIT_FSIZE, &limit) == 0, "Cannot read file size limit")
+        limit.rlim_cur = 80 * 1024
+        try check(setrlimit(RLIMIT_FSIZE, &limit) == 0, "Cannot set fixture write limit")
+        let format = AVAudioFormat(standardFormatWithSampleRate:16000,channels:1)!
+        let buffer = AVAudioPCMBuffer(pcmFormat:format,frameCapacity:4096)!
+        buffer.frameLength = 4096
+        let sink = AudioSink()
+        sink.configure(file:try AVAudioFile(forWriting:url,settings:format.settings),gain:1)
+        var failed = false
+        for _ in 0..<10 {
+            do { try sink.append(buffer) } catch { failed = true; break }
+        }
+        let duration = sink.closeRecording()
+        let saved = try AVAudioFile(forReading:url)
+        try check(failed && duration > 0 && duration == Double(saved.length)/format.sampleRate, "Partial disk write lost the retained recording duration")
+    }
     @MainActor static func main() async throws {
+        if CommandLine.arguments.count == 3, CommandLine.arguments[1] == "--limited-recording" {
+            try checkLimitedRecording(at:URL(fileURLWithPath:CommandLine.arguments[2]))
+            return
+        }
         let suite = UUID().uuidString
         let defaults = UserDefaults(suiteName:suite)!
         defer { defaults.removePersistentDomain(forName:suite) }
@@ -93,6 +117,40 @@ actor FeishuMock {
         m.audioSegments = ["one.caf","two.caf"]
         let decoded = try JSONDecoder().decode(Meeting.self,from:JSONEncoder().encode(m))
         try check(decoded.lines == m.lines && decoded.context == m.context && decoded.audioSegments == m.audioSegments,"Meeting persistence lost correction or audio segments")
+        var continued = Meeting()
+        continued.audioPath = "original.caf"
+        continued.appendRecording(at:"resumed.caf")
+        continued.appendRecording(at:"last.caf")
+        let restoredAudio = try JSONDecoder().decode(Meeting.self,from:JSONEncoder().encode(continued))
+        try check(restoredAudio.recordingPaths == ["original.caf","resumed.caf","last.caf"] && restoredAudio.audioPath == "last.caf","Continuing a legacy meeting lost the original recording")
+        let audioURL = archiveRoot.appendingPathComponent("saved.caf")
+        let audioFormat = AVAudioFormat(standardFormatWithSampleRate:16000,channels:1)!
+        let frames = AVAudioPCMBuffer(pcmFormat:audioFormat,frameCapacity:1200)!
+        frames.frameLength = 1200
+        let sink = AudioSink()
+        sink.configure(file:try AVAudioFile(forWriting:audioURL,settings:audioFormat.settings),gain:1)
+        try sink.append(frames)
+        try sink.append(frames)
+        let savedDuration = sink.closeRecording()
+        try sink.append(frames)
+        let savedAudio = try AVAudioFile(forReading:audioURL)
+        try check(savedAudio.length == 2400 && abs(savedDuration - Double(savedAudio.length)/16000) < 0.00001,"Duration did not match frames retained on disk")
+        let limited = Process()
+        limited.executableURL = URL(fileURLWithPath:CommandLine.arguments[0])
+        limited.arguments = ["--limited-recording", archiveRoot.appendingPathComponent("limited.caf").path]
+        try limited.run()
+        limited.waitUntilExit()
+        try check(limited.terminationStatus == 0,"Limited recording regression")
+        let resumedURL = archiveRoot.appendingPathComponent("resumed.caf")
+        try FileManager.default.copyItem(at:audioURL,to:resumedURL)
+        let recordings = [audioURL.path,resumedURL.path]
+        let firstClip = try RecordingClip.locate(paths:recordings, from:0.05, until:0.09)
+        try check(firstClip.url == audioURL && abs(firstClip.duration - 0.04) < 0.0001,"Passage ignored the requested end")
+        let boundaryClip = try RecordingClip.locate(paths:recordings, from:savedDuration, until:nil)
+        try check(boundaryClip.url == resumedURL && boundaryClip.offset == 0,"Passage at a session boundary played the old recording")
+        let laterClip = try RecordingClip.locate(paths:recordings, from:savedDuration + 0.05, until:4)
+        try check(laterClip.url == resumedURL && abs(laterClip.offset - 0.05) < 0.0001 && abs(laterClip.duration - 0.1) < 0.0001,"Resumed passage exceeded segment bounds")
+        try check((try? RecordingClip.locate(paths:recordings, from:4, until:nil)) == nil,"Out-of-range passage replayed unrelated audio")
         try check(NoteSection.parse("").isEmpty,"Empty notes produced invented board content")
         let sections = NoteSection.parse("## 决策\n尚未决定\n## 待办\n负责人待确认")
         try check(sections.map(\.title) == ["决策","待办"],"Board headings changed")
@@ -162,6 +220,14 @@ actor FeishuMock {
         attributed.voiceAliases = ["guest-original":"person-a"]
         attributed.voiceNames = ["person-a":"甲","guest-original":"说话人 2"]
         try check(attributed.attributedLines.first?.speaker == "甲","Quick naming did not update historical transcript")
+        var review = attributed
+        review.lines.append(Line(time:4,speaker:"未标记",text:"临时字幕",live:true))
+        try check(review.markdown.contains("**甲**") && !review.markdown.contains("临时字幕"),"Export lost the named speaker or exposed unfinished speech")
+        review.voiceNames?["other-meeting"] = "外部人员"
+        review.messages = [ChatMessage(role:"user",text:"核对发票")]
+        try check(review.matchesSearch("甲 发票") && !review.matchesSearch("外部人员"),"Search included people who never spoke or ignored meeting context")
+        review.lines = [Line(time:1,speaker:"甲",text:"开场"),Line(time:3,speaker:"乙",text:"继续")]
+        try check(review.endOfSpeech(review.lines[0]) == 3 && review.endOfSpeech(review.lines[1]) == nil,"Legacy untimed words cannot be reviewed")
         attributed.voiceAliases = [:]
         try check(attributed.attributedLines.first?.speaker == "说话人 2","Undo could not recover pre-merge identity provenance")
         let legacyJSON = Data("{\"id\":\"00000000-0000-0000-0000-000000000001\",\"title\":\"旧会议\",\"date\":0,\"lines\":[],\"notes\":\"\",\"context\":\"\",\"duration\":0}".utf8)

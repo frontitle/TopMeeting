@@ -2,6 +2,10 @@ const $=id=>document.getElementById(id);let state={meetings:[],config:{}},select
 const current=()=>state.meetings.find(m=>m.id===selected);
 function notice(text){$('notice').textContent=text;}
 function clock(seconds){return `${Math.floor(seconds/60).toString().padStart(2,'0')}:${Math.floor(seconds%60).toString().padStart(2,'0')}`;}
+function displayedDuration(m){
+  const live=recorder?.state==='recording' && !paused ? (Date.now()-started)/1000 : 0;
+  return (m?.duration||0)+elapsed+live;
+}
 async function action(fn){try{await fn();}catch(e){notice(e.message);}}
 async function reload(){state=await api.load();if(!state.meetings.some(m=>m.id===selected && !!m.deletedAt===$('trash').checked))selected=state.meetings.find(m=>!!m.deletedAt===$('trash').checked)?.id;render();}
 function renderNotes(m){
@@ -19,6 +23,8 @@ function renderNotes(m){
   }
 }
 function render(){const m=current();
+if(playback && (playback.meeting !== selected || recorder || busy))clearPlayback();
+$('trash').disabled=!!recorder||busy;
 renderNotes(m);
 $('welcome').hidden=!!m;
 $('welcome').querySelector('h1').textContent=$('trash').checked?'最近删除':'开始第一场会议';
@@ -32,9 +38,21 @@ $('people').textContent=(m?.speakers?.length||0)+' 位说话人';$('people').dis
 const roster=$('knownSpeakers');roster.replaceChildren();
 const names=new Set(state.meetings.flatMap(meeting=>[...meeting.lines.map(line=>line.speaker),...(meeting.speakers||[]).map(p=>p.name)]).filter(name=>name && !['未标记','未知说话人'].includes(name) && !/^说话人 ?\d+$/.test(name)));
 for(const value of names){const option=document.createElement('option');option.value=value;roster.append(option);}
-$('meetings').replaceChildren();const q=$('search').value.toLowerCase().trim();for(const item of state.meetings){if(!!item.deletedAt!==$('trash').checked)continue;const text=JSON.stringify([item.title,item.lines,item.notes]).toLowerCase();if(!q.split(/\s+/).every(t=>text.includes(t)))continue;const b=document.createElement('button');b.className=item.id===selected?'selected':'';b.append(document.createTextNode(item.title));const d=document.createElement('small');d.textContent=new Date(item.date).toLocaleString();b.append(d);b.disabled=!!recorder||busy;b.onclick=()=>{selected=item.id;render();};$('meetings').append(b);}
-$('title').value=m?.title||'';$('context').value=m?.context||'';$('meta').textContent=m?[new Date(m.date).toLocaleDateString(),m.lines.length && m.lines.length+' 段实录',m.recordings.length && m.recordings.length+' 段录音'].filter(Boolean).join(' · '):'';$('time').textContent=clock((m?.duration||0)+elapsed);$('delete').textContent=m?.deletedAt?'恢复会议':'删除会议';$('recordings').replaceChildren();for(let i=0;i<(m?.recordings.length||0);i++){const o=document.createElement('option');o.value=i;o.textContent='录音 '+(i+1);$('recordings').append(o);}$('play').disabled=!m?.recordings.length||!!recorder;
+$('meetings').replaceChildren();const q=$('search').value.toLowerCase().trim();for(const item of state.meetings){if(!!item.deletedAt!==$('trash').checked)continue;if(q){const text=[item.title,item.notes,item.context,...(item.speakers||[]).map(person=>person.name),...item.lines.flatMap(line=>[line.text,line.speaker,...(line.voices||[]).map(person=>person.name)])].join(' ').toLowerCase();if(!q.split(/\s+/).every(t=>text.includes(t)))continue;}const b=document.createElement('button');b.className=item.id===selected?'selected':'';b.append(document.createTextNode(item.title));const d=document.createElement('small');d.textContent=new Date(item.date).toLocaleString();b.append(d);b.disabled=!!recorder||busy;b.onclick=()=>{selected=item.id;render();};$('meetings').append(b);}
+$('title').value=m?.title||'';$('context').value=m?.context||'';$('meta').textContent=m?[new Date(m.date).toLocaleDateString(),m.lines.length && m.lines.length+' 段实录',m.recordings.length && m.recordings.length+' 段录音'].filter(Boolean).join(' · '):'';$('time').textContent=clock(displayedDuration(m));$('delete').textContent=m?.deletedAt?'恢复会议':'删除会议';$('recordings').replaceChildren();for(let i=0;i<(m?.recordings.length||0);i++){const o=document.createElement('option');o.value=i;o.textContent='录音 '+(i+1);$('recordings').append(o);}if(playback?.url && m?.recordings.includes(playback.file))$('recordings').value=String(m.recordings.indexOf(playback.file));$('play').disabled=!m?.recordings.length||!!recorder||busy;
 $('lines').replaceChildren();for(const line of m?.lines||[]){const card=document.createElement('div');card.className='line';const name=document.createElement('input');name.className='speaker';name.setAttribute('list','knownSpeakers');name.value=line.speaker;name.setAttribute('aria-label','说话人姓名');name.disabled=busy;const text=document.createElement('textarea');text.value=line.text;text.setAttribute('aria-label','实录文字');text.disabled=busy;const remove=document.createElement('button');remove.textContent='删除';remove.disabled=busy;name.onchange=()=>action(async()=>{try{await api.line(m.id,line.id,{speaker:name.value});}finally{await reload();}});text.onchange=()=>action(async()=>{await api.line(m.id,line.id,{text:text.value});await reload();});remove.onclick=()=>action(async()=>{await api.line(m.id,line.id,{remove:true});await reload();});if(line.overlap)card.append(document.createTextNode('重叠发言 · '));card.append(name,remove);
+const index = m.recordings.indexOf(line.recording);
+const offset = line.recordingOffset ?? (index === 0 ? 0 : undefined);
+if (index >= 0 && Number.isFinite(offset) && Number.isFinite(line.start) && line.start >= offset) {
+  const play = document.createElement('button');
+  play.className = 'passage-time';
+  play.textContent = '▶ ' + clock(line.start);
+  play.title = '回听这段发言';
+  play.setAttribute('aria-label', play.title + ' ' + clock(line.start));
+  play.disabled = !!recorder || busy;
+  play.onclick = () => action(() => playRecording(index, line.start - offset, line.end > line.start ? line.end - offset : null));
+  card.append(play);
+}
 for(const voice of line.voices||[]){
   if(voice.id===line.speakerID)continue;
   const extra=document.createElement('input');
@@ -53,7 +71,41 @@ $('summarize').onclick=()=>{if(!state.config.base){$('settings').click();$('conf
 $('settings').onclick=()=>{for(const [k,v]of Object.entries(state.config)){const input=$('config').elements.namedItem(k);if(input)input.value=v||'';}$('config').elements.token.value='';$('configError').textContent='';$('dialog').showModal();};$('close').onclick=()=>$('dialog').close();$('config').onsubmit=async e=>{e.preventDefault();try{await api.settings(Object.fromEntries(new FormData(e.target)));$('dialog').close();await reload();notice('配置已保存');}catch(error){$('configError').textContent=error.message;}};
 window.addEventListener('beforeunload',e=>{if(recorder||busy){e.preventDefault();e.returnValue=false;}});action(reload);
 
-let audioURL=null;$('play').onclick=()=>action(async()=>{const bytes=await api.audio(selected,Number($('recordings').value));if(audioURL)URL.revokeObjectURL(audioURL);audioURL=URL.createObjectURL(new Blob([bytes],{type:'audio/webm'}));$('audio').src=audioURL;$('audio').hidden=false;await $('audio').play();});
+let playback = null;
+function clearPlayback() {
+  if (!playback) return;
+  const audio = $('audio');
+  audio.pause();
+  audio.removeAttribute('src');
+  audio.load();
+  audio.hidden = true;
+  if (playback.url) URL.revokeObjectURL(playback.url);
+  playback = null;
+}
+async function playRecording(index, from = 0, until = null) {
+  const file = current()?.recordings[index];
+  if (!file || recorder || busy) return;
+  const cached = playback?.file === file && playback.meeting === selected ? playback.url : null;
+  const request = {meeting:selected, file, url:cached};
+  if (!cached) clearPlayback();
+  playback = request;
+  try {
+    if (!cached) {
+      const bytes = await api.audio(selected, index);
+      if (playback !== request) return;
+      request.url = URL.createObjectURL(new Blob([bytes], {type:'audio/webm'}));
+    }
+    $('recordings').value = String(index);
+    const audio = $('audio');
+    const fragment = '#t=' + from + (until === null ? '' : ',' + until);
+    audio.src = request.url + fragment;
+    audio.hidden = false;
+    await audio.play();
+  } catch (error) {
+    if (playback === request) { clearPlayback(); throw error; }
+  }
+}
+$('play').onclick = () => action(() => playRecording(Number($('recordings').value)));
 
 function renderPeople(){
   $('peopleList').replaceChildren();

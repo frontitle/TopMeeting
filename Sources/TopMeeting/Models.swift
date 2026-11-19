@@ -51,6 +51,15 @@ struct Meeting: Codable, Identifiable {
     var corrections: [TermCorrection]?
     var audioPath: String?
     var audioSegments: [String]?
+    var recordingPaths: [String] {
+        var paths = audioSegments ?? []
+        if let audioPath, !audioPath.isEmpty, !paths.contains(audioPath) { paths.append(audioPath) }
+        return paths
+    }
+    mutating func appendRecording(at path: String) {
+        audioSegments = recordingPaths + [path]
+        audioPath = path
+    }
     var duration: TimeInterval = 0
     var deletedAt: Date?
     var voiceTurns: [VoiceTurn]?
@@ -242,9 +251,33 @@ struct MeetingGroup: Identifiable {
     let meetings: [Meeting]
 }
 extension Meeting {
+    var markdown: String {
+        let dialogue = conversation.map { "**\($0.role == "user" ? "我" : "AI")**：\($0.text)" }.joined(separator:"\n\n")
+        let transcript = transcriptParagraphs.map { paragraph in
+            let overlap = paragraph.overlap ? "（重叠发言）" : ""
+            return "[\(clock(paragraph.time))] **\(paragraph.speaker)**\(overlap)：\(paragraph.text)"
+        }.joined(separator:"\n\n")
+        return "# \(title)\n\n\(notes)\n\n## 会议对话与补充\n\(context)\n\(dialogue)\n\n## 全文转写\n" + transcript
+    }
+
+    func endOfSpeech(_ line: Line) -> TimeInterval? {
+        let next = lines.lazy.filter { $0.live != true && $0.time > line.time }.map(\.time).min()
+        guard let lastWord = line.words?.last, lastWord.end > line.time else { return next }
+        return min(next ?? lastWord.end, lastWord.end)
+    }
+
     func matchesSearch(_ query: String) -> Bool {
         let terms = query.split(whereSeparator: { $0.isWhitespace }).map(String.init)
-        let fields = [title,notes,context] + lines.flatMap { [$0.text,$0.speaker] } + Array((voiceNames ?? [:]).values)
-        return terms.allSatisfy { term in fields.contains { $0.localizedCaseInsensitiveContains(term) } }
+        guard !terms.isEmpty else { return true }
+        let details = [title, notes, context, userClarifications]
+        return terms.allSatisfy { term in
+            if details.contains(where:{ $0.localizedCaseInsensitiveContains(term) }) { return true }
+            if lines.contains(where:{ line in
+                guard line.live != true else { return false }
+                let name = line.personID.flatMap { voiceNames?[resolvedSpeaker($0)] } ?? line.speaker
+                return name.localizedCaseInsensitiveContains(term) || line.text.localizedCaseInsensitiveContains(term)
+            }) { return true }
+            return (voiceTurns ?? []).contains { namesFor($0).text.localizedCaseInsensitiveContains(term) }
+        }
     }
 }

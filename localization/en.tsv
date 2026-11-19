@@ -223,3 +223,9 @@ TopMeeting 实时聆听	TopMeeting Live Captions
 在飞书开放平台创建应用	Create an app in the Feishu developer console
 结束	End
 检查更新…	Check for Updates…
+停止回听	Stop playback
+回听这段发言	Play this passage
+这个时间点没有可播放的录音。	No recording is available at this timestamp.
+无法播放录音，请检查声音输出设备。	Check your sound output device and try playing the recording again.
+录音文件写入失败，录音已停止。请检查磁盘空间和文件权限后继续录音。	Recording stopped because the audio file could not be written. Check disk space and file permissions before resuming.
+无法复制识别音频缓冲区，原始录音仍在保存。	A transcription buffer could not be copied. Audio is still being recorded.

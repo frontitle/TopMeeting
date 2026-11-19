@@ -74,8 +74,9 @@ struct Workspace: View {
                     }.labelsHidden().padding(.horizontal,16)
                 }
                 List {
-                    if store.visibleMeetings.isEmpty { Text(L10n.tr("没有匹配的会议")).font(.caption).foregroundStyle(sidebarDetail) }
-                    ForEach(store.meetingGroups) { group in
+                    let groups = store.meetingGroups
+                    if groups.isEmpty { Text(L10n.tr("没有匹配的会议")).font(.caption).foregroundStyle(sidebarDetail) }
+                    ForEach(groups) { group in
                     Section {
                         ForEach(group.meetings) { m in
                             Button { store.select(m.id); context = "" } label: {
@@ -119,6 +120,7 @@ struct Workspace: View {
                 }.frame(maxWidth:.infinity,maxHeight:.infinity)
             }
         }
+        .onDisappear { store.stopPlayback() }
         .onChange(of:store.selected) { _,_ in context = "" }
         .toolbar {
             ToolbarItem {
@@ -210,7 +212,18 @@ struct Workspace: View {
                                             SpeakerDropdown(speaker:VoiceProfile(id:identity,name:piece.speakerNames[identity] ?? m.voiceNames?[identity] ?? piece.speaker,seconds:0))
                                         }
                                     } else { SpeakerDropdown(speaker:VoiceProfile(id:"manual:"+line.id.uuidString,name:piece.speaker,seconds:0)) }
-                                if line.live == true { Label(L10n.tr("正在识别"),systemImage:"circle.fill").font(.caption2).foregroundStyle(accent) }; Text(clock(piece.time)).font(.caption.monospacedDigit()).foregroundStyle(.secondary); Spacer(); Button { followTranscript = false; editing = line } label: { Image(systemName:"pencil") }.buttonStyle(.plain).help(L10n.tr("纠正文字或标记说话人")).disabled(line.live == true || m.deletedAt != nil) }
+                                if line.live == true { Label(L10n.tr("正在识别"),systemImage:"circle.fill").font(.caption2).foregroundStyle(accent) }
+                                if !m.recordingPaths.isEmpty && !store.recording && !store.starting && !store.ending {
+                                    let playing = store.playingLine == line.id
+                                    Button { store.playLine(line) } label: {
+                                        Label(clock(piece.time), systemImage:playing ? "stop.fill" : "play.fill")
+                                    }.buttonStyle(.plain).font(.caption.monospacedDigit()).foregroundStyle(accent)
+                                        .help(L10n.tr(playing ? "停止回听" : "回听这段发言"))
+                                        .accessibilityLabel(L10n.tr(playing ? "停止回听" : "回听这段发言") + " " + clock(piece.time))
+                                } else {
+                                    Text(clock(piece.time)).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                                }
+                                Spacer(); Button { followTranscript = false; editing = line } label: { Image(systemName:"pencil") }.buttonStyle(.plain).help(L10n.tr("纠正文字或标记说话人")).disabled(line.live == true || m.deletedAt != nil) }
                                 SelectableTranscript(text:piece.text,editable:line.live != true && m.deletedAt == nil,onInteraction: { followTranscript = false }) { selection,replacement,remember in
                                     let origin = piece.sourceRange?.location ?? 0
                                     try store.correctWord(lineID:line.id,expected:line.text,range:NSRange(location:origin+selection.location,length:selection.length),replacement:replacement,remember:remember)
@@ -230,7 +243,7 @@ struct Workspace: View {
             .onChange(of:m.lines.filter { $0.live != true }.count) { _, _ in if followTranscript { scroll.scrollTo("transcript-bottom",anchor:.bottom) } }
             }
             if !store.correctionStatus.isEmpty { Label(store.correctionStatus,systemImage:"checkmark.circle.fill").font(.caption2).foregroundStyle(.blue).padding(.horizontal,22).padding(.vertical,8) }
-            if let path = m.audioPath { Button { NSWorkspace.shared.selectFile(path,inFileViewerRootedAtPath:"") } label: { Label(L10n.tr("查看原始录音"),systemImage:"waveform.path") }.buttonStyle(.plain).font(.caption).foregroundStyle(.secondary).padding(.horizontal,20).padding(.bottom,12) }
+            if !m.recordingPaths.isEmpty { Button { NSWorkspace.shared.activateFileViewerSelecting(m.recordingPaths.map { URL(fileURLWithPath:$0) }) } label: { Label(L10n.tr("查看原始录音"),systemImage:"waveform.path") }.buttonStyle(.plain).font(.caption).foregroundStyle(.secondary).padding(.horizontal,20).padding(.bottom,12) }
         }
     }
     func conversation(_ m: Meeting) -> some View {

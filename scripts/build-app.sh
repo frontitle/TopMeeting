@@ -54,8 +54,8 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 <key>CFBundleIdentifier</key><string>com.topmeeting.mac</string>
 <key>CFBundleExecutable</key><string>TopMeeting</string>
 <key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleShortVersionString</key><string>0.15.0</string>
-<key>CFBundleVersion</key><string>22</string>
+<key>CFBundleShortVersionString</key><string>0.15.1</string>
+<key>CFBundleVersion</key><string>23</string>
 <key>SUFeedURL</key><string>https://raw.githubusercontent.com/frontitle/TopMeeting/main/docs/updates/macos-ARCH.xml</string>
 <key>SUPublicEDKey</key><string>59Q0D6Qo1KWQKN5dGg+OZDk83WHDlX4p6FGm00oFBbc=</string>
 <key>SUVerifyUpdateBeforeExtraction</key><true/>

@@ -4,13 +4,14 @@ import AVFoundation
 
 @MainActor final class MeetingStore: ObservableObject {
     @Published var meetings: [Meeting] = []
-    @Published var selected: UUID?
+    @Published var selected: UUID? { didSet { if oldValue != selected { stopPlayback() } } }
     @Published var recording = false
     @Published var recordingPaused = false
     @Published var inputLevels: [Double] = Array(repeating:-90,count:28)
     @Published var starting = false
     @Published var ending = false
-    private var awaitingFinalVoice: UUID?
+    private var recordingVoiceSession: String?
+    private var awaitingFinalVoice: String?
     @Published var inputLevel: Double = -90
     @Published var liveCaption = ""
     @Published var captureStatus = ""
@@ -32,6 +33,7 @@ import AVFoundation
     @Published var voiceProfiles: [VoiceProfile] = []
     @Published var identityBusy = false
     @Published var replayingVoices = false
+    @Published private(set) var playingLine: UUID?
     private var audition: AVAudioPlayer?
     private var auditionTimer: Timer?
     @Published var identityMessage = ""
@@ -148,6 +150,11 @@ import AVFoundation
             self.inputLevels = Array((self.inputLevels + [level]).suffix(28))
         }
         capture.onStatus = { [weak self] in self?.captureStatus = $0 }
+        capture.onWriteFailure = { [weak self] in
+            guard let self, self.recording, !self.ending else { return }
+            self.notice = "录音文件写入失败，录音已停止。请检查磁盘空间和文件权限后继续录音。"
+            self.toggleRecording()
+        }
     }
     private func handleVoice(_ packet: VoicePacket) {
         let previousProfileIDs = Set(voiceProfiles.map(\.id))
@@ -162,11 +169,13 @@ import AVFoundation
             if let names = packet.names { meetings[i].voiceNames = (meetings[i].voiceNames ?? [:]).filter { $0.key.hasPrefix("name:") }.merging(names) { _,new in new } }
             let aligned = events.map { event -> VoiceTurn in var e = event; e.start += offset; e.end += offset; return e }
             meetings[i].replaceVoiceTurns(aligned,from:(packet.replaceFrom ?? 0) + offset); save()
-            if packet.requestID == "final-flush", awaitingFinalVoice == meetingID { finishAfterVoice() }
+            if packet.requestID == "final-flush" { finishAfterVoice(session) }
             if selected == meetingID {
                 let recent = aligned.last
                 voiceStatus = recent?.overlap == true ? "检测到多人重叠发言 · 混合语音不强行归属" : "最近发言：\(recent?.speakers.joined(separator:" + ") ?? "等待人声")"
             }
+        case "flushed":
+            if packet.requestID == "final-flush", let session = packet.sessionID { finishAfterVoice(session) }
         case "replayed":
             replayingVoices = false; voiceStatus = "已有录音分析完成，可试听、标记或合并说话人。"
         case "contact":
@@ -205,8 +214,9 @@ import AVFoundation
         default: break
         }
     }
-    private func finishAfterVoice() {
-        let meetingID = awaitingFinalVoice
+    private func finishAfterVoice(_ session: String) {
+        guard awaitingFinalVoice == session else { return }
+        let meetingID = voiceSessions[session]?.0
         awaitingFinalVoice = nil; ending = false
         if selected == meetingID { analyze(final:true) }
     }
@@ -268,34 +278,51 @@ import AVFoundation
     }
     func analyzeRecordedVoices() {
         guard voiceReady, !recording, !starting, !ending, !replayingVoices, let meeting = current else { return }
-        let paths = meeting.audioSegments ?? meeting.audioPath.map { [$0] } ?? []
+        let paths = meeting.recordingPaths
         guard !paths.isEmpty else { return }
         let session = UUID().uuidString
         voiceSessions[session] = (meeting.id,0); replayingVoices = true
         voiceStatus = "正在从已有录音发现不同声音，原文和原音保持不变…"
         voice.command(["command":"replay","meetingID":meeting.id.uuidString,"sessionID":session,"paths":paths,"rebuild":true])
     }
+    func stopPlayback() {
+        auditionTimer?.invalidate()
+        auditionTimer = nil
+        audition?.stop()
+        audition = nil
+        if playingLine != nil { playingLine = nil }
+    }
+
+    func playLine(_ line: Line) {
+        if playingLine == line.id { stopPlayback(); return }
+        guard let meeting = current, line.live != true else { return }
+        playRecording(meeting, from:line.time, until:meeting.endOfSpeech(line), lineID:line.id)
+    }
+
     func auditionSpeaker(_ identity: String) {
         guard let meeting = current,
-              let turn = (meeting.voiceTurns ?? []).filter({!$0.overlap && meeting.namesFor($0).ids.contains(identity) && $0.end-$0.start >= 0.8}).max(by:{$0.end-$0.start < $1.end-$1.start}) else { return }
-        let paths = meeting.audioSegments ?? meeting.audioPath.map { [$0] } ?? []
-        var offset: Double = 0
+              let turn = (meeting.voiceTurns ?? []).filter({ !$0.overlap && meeting.namesFor($0).ids.contains(identity) && $0.end - $0.start >= 0.8 })
+                .max(by:{ $0.end - $0.start < $1.end - $1.start }) else { return }
+        playRecording(meeting, from:turn.start, until:min(turn.end, turn.start + 4))
+    }
+
+    private func playRecording(_ meeting: Meeting, from start: Double, until end: Double?, lineID: UUID? = nil) {
+        guard !recording, !starting, !ending else { return }
+        stopPlayback()
         do {
-            for path in paths {
-                let url = URL(fileURLWithPath:path)
-                let file = try AVAudioFile(forReading:url)
-                let duration = Double(file.length)/file.processingFormat.sampleRate
-                if turn.start < offset+duration {
-                    audition?.stop(); auditionTimer?.invalidate()
-                    audition = try AVAudioPlayer(contentsOf:url)
-                    audition?.currentTime = max(0,turn.start-offset)
-                    audition?.play()
-                    auditionTimer = Timer.scheduledTimer(withTimeInterval:min(4,turn.end-turn.start,duration-(turn.start-offset)),repeats:false) { [weak self] _ in Task { @MainActor in self?.audition?.stop() } }
-                    return
+            let clip = try RecordingClip.locate(paths:meeting.recordingPaths, from:start, until:end)
+            let player = try AVAudioPlayer(contentsOf:clip.url)
+            player.currentTime = clip.offset
+            guard player.play() else { throw Gateway.error("无法播放录音，请检查声音输出设备。") }
+            audition = player
+            playingLine = lineID
+            auditionTimer = Timer.scheduledTimer(withTimeInterval:clip.duration, repeats:false) { [weak self] timer in
+                Task { @MainActor in
+                    guard let self, self.auditionTimer === timer else { return }
+                    self.stopPlayback()
                 }
-                offset += duration
             }
-        } catch { voiceStatus = "无法试听该声音：\(error.localizedDescription)" }
+        } catch { notice = error.localizedDescription }
     }
     func renameInlineSpeaker(_ identity: String,name: String) {
         let name = name.trimmingCharacters(in:.whitespacesAndNewlines)
@@ -437,21 +464,25 @@ import AVFoundation
     func toggleRecording() {
         if recording {
             guard !ending else { return }
-            ending = true; timer?.invalidate(); update { $0.duration = elapsed }
+            ending = true; timer?.invalidate()
             Task { [self] in
                 // Keep accepting final recognizer results until it has drained.
-                await capture.stop()
+                let savedDuration = await capture.stop()
+                elapsed = offset + savedDuration
+                update { $0.duration = elapsed }
                 recording = false; recordingPaused = false; inputLevel = -90; captureStatus = "录音已结束"
-                if voice.isRunning {
-                    awaitingFinalVoice = selected; voice.flush()
+                let session = recordingVoiceSession
+                recordingVoiceSession = nil
+                if voice.isRunning, let session {
+                    awaitingFinalVoice = session; voice.flush()
                     try? await Task.sleep(nanoseconds:3_000_000_000)
-                    if ending { finishAfterVoice() }
+                    finishAfterVoice(session)
                 } else { ending = false; analyze(final:true) }
             }
             return
         }
-        guard !replayingVoices else { return }
-        audition?.stop()
+        guard archiveAvailable, !starting, !ending, !replayingVoices else { return }
+        stopPlayback()
         if current == nil { create() }
         guard current?.deletedAt == nil else { return }
         guard !starting, let id = selected else { return }
@@ -466,12 +497,13 @@ import AVFoundation
                 offset = current?.duration ?? 0
                 if voice.isRunning {
                     let session = UUID().uuidString
+                    recordingVoiceSession = session
                     voiceSessions[session] = (id,offset); voice.session(session,meetingID:id.uuidString,offset:offset)
                 }
                 syncRecognitionTerms()
                 try await capture.start(url:url,gain:Float(recognitionGain),device:microphoneID,localeIdentifier:speechLocale)
                 offset = current?.duration ?? 0; recordingClock.start(); recordingPaused = false; inputLevels = Array(repeating:-90,count:28); elapsed = offset; recording = true
-                update { $0.summaryState = "live"; $0.audioPath = url.path; $0.audioSegments = ($0.audioSegments ?? []) + [url.path] }
+                update { $0.summaryState = "live"; $0.appendRecording(at:url.path) }
                 if let id = selected { startDocumentLinks(id:id) }
                 if automaticFeishu, let id = selected {
                     Task {
@@ -483,13 +515,17 @@ import AVFoundation
                 }
                 timer = Timer.scheduledTimer(withTimeInterval:1, repeats:true) { [weak self] _ in
                     Task { @MainActor in
-                        guard let self, !self.recordingPaused else { return }
+                        guard let self, self.recording, self.selected == id, !self.recordingPaused, !self.ending else { return }
                         self.elapsed = self.offset + self.recordingClock.elapsed()
                         if Int(self.elapsed) % 15 == 0 { self.update { $0.duration = self.elapsed } }
                         if Int(self.elapsed) % 60 == 0, self.automaticFeishu, self.feishuReady { self.syncFeishu(final:false) }
                     }
                 }
-            } catch { notice = error.localizedDescription }
+            } catch {
+                if let session = recordingVoiceSession { voiceSessions.removeValue(forKey:session); recordingVoiceSession = nil }
+                if (try? AVAudioFile(forReading:url).length) == 0 { try? FileManager.default.removeItem(at:url) }
+                notice = error.localizedDescription
+            }
         }
     }
     func trash(_ id: UUID) {
@@ -636,8 +672,6 @@ import AVFoundation
         guard let m = current else { return }
         let panel = NSSavePanel(); panel.nameFieldStringValue = "\(m.title).md"
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        let dialogue = m.conversation.map { "**\($0.role == "user" ? "我" : "AI")**：\($0.text)" }.joined(separator:"\n\n")
-        let text = "# \(m.title)\n\n\(m.notes)\n\n## 会议对话与补充\n\(m.context)\n\(dialogue)\n\n## 全文转写\n" + m.lines.map { "[\(clock($0.time))] **\($0.speaker)**：\($0.text)" }.joined(separator:"\n\n")
-        do { try text.write(to:url, atomically:true, encoding:.utf8) } catch { notice = error.localizedDescription }
+        do { try m.markdown.write(to:url, atomically:true, encoding:.utf8) } catch { notice = error.localizedDescription }
     }
 }

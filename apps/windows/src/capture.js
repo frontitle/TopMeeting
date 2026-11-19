@@ -1,6 +1,15 @@
-let context,node,source,pcmQueue,flushPCM,pcmError,queued,captureWarning;
+let context,node,source,pcmQueue,flushPCM,pcmError,queued,captureWarning,recorderStopped;
+let unsavedChunks=[], audioOffset=0, pendingSave=false, writeInterrupted=false;
+async function writeRecordingChunks(){
+  while(unsavedChunks.length){
+    const chunk=unsavedChunks[0];
+    await api.chunk(new Uint8Array(await chunk.arrayBuffer()),audioOffset);
+    audioOffset+=chunk.size;
+    unsavedChunks.shift();
+  }
+}
 function showTime(){
-  const seconds=(current()?.duration||0)+elapsed+(paused?0:(Date.now()-started)/1000);
+  const seconds=displayedDuration(current());
   $('time').textContent=clock(seconds);api.overlay(paused,seconds).catch(()=>{});
 }
 async function begin(local=true){
@@ -19,6 +28,7 @@ async function begin(local=true){
     notice('正在启动本地语音与声纹模型…');
     await api.start(selected,local);opened=true;
     pcmQueue=Promise.resolve();pcmError=null;queued=0;writes=Promise.resolve();recordError=null;
+    unsavedChunks=[];audioOffset=0;pendingSave=false;writeInterrupted=false;
     if(local)node.port.onmessage=({data})=>{
       if(data==='flushed'){flushPCM?.();return;}
       if(pcmError)return;
@@ -27,13 +37,32 @@ async function begin(local=true){
       pcmQueue=pcmQueue.then(()=>api.pcm(data)).catch(error=>{pcmError=error;notice(error.message);}).finally(()=>queued--);
     };
     recorder.ondataavailable=e=>{
-      if(e.data.size)writes=writes.then(async()=>api.chunk(new Uint8Array(await e.data.arrayBuffer()))).catch(error=>{recordError=error;notice(error.message);});
+      const limit=4*1024*1024;
+      for(let start=0;start<e.data.size;start+=limit)unsavedChunks.push(e.data.slice(start,start+limit));
+      writes=writes.then(writeRecordingChunks).catch(error=>{
+        writeInterrupted=true;
+        notice('原音写入失败，正在停止录音。'+error.message);
+        if(!busy)action(finish);
+      });
     };
     if(local){
     source.connect(node);
     node.connect(context.destination); // Worklet emits silence, preserving the microphone signal without feedback.
     await context.resume();
     }
+    recorder.onerror=event=>{
+      recordError=event.error||new Error('录音设备出错');
+      notice(recordError.message);
+    };
+    recorderStopped=new Promise(resolve=>{
+      recorder.onstop=()=>{
+        resolve();
+        if(!busy){
+          captureWarning='麦克风录音已中断，已有录音已保存。';
+          action(finish);
+        }
+      };
+    });
     recorder.start(5000);started=Date.now();elapsed=0;paused=false;
     timer=setInterval(showTime,500);
     $('record').textContent='结束录音';$('pause').hidden=false;$('pause').textContent='暂停';
@@ -47,7 +76,7 @@ async function begin(local=true){
 }
 let pauseChange;
 function togglePause(){
-  if(!recorder||busy||pauseChange)return pauseChange;
+  if(!recorder||busy||pendingSave||pauseChange)return pauseChange;
   pauseChange=changePause().finally(()=>{pauseChange=null;});
   return pauseChange;
 }
@@ -60,26 +89,60 @@ async function changePause(){
 async function finish(){
   if(!recorder||busy)return;
   busy=true;render();
-  try{await pauseChange;}catch(error){notice(error.message);}
-  if(!paused)elapsed+=(Date.now()-started)/1000;
-  clearInterval(timer);
   try{
-    if(node){
-    source.disconnect();
-    if(paused)await context.resume();
-    const flushed=new Promise(resolve=>{flushPCM=resolve;});
-    node.port.postMessage('flush');await flushed;await pcmQueue;
+    if(!pendingSave){
+      try{await pauseChange;}catch(error){notice(error.message);}
+      if(!paused)elapsed+=(Date.now()-started)/1000;
+      clearInterval(timer);
+      notice('正在保存会议…');
+      if(recorder.state!=='inactive')recorder.stop();
+      const drained=node ? drainMicrophone().catch(error=>{pcmError=error;}) : null;
+      await recorderStopped;
+      stream.getTracks().forEach(track=>track.stop());
+      await writes;
+      await drained;
+      await pcmQueue;
+      node?.disconnect();
+      await context?.close().catch(()=>{});
+      node=null;context=null;source=null;
+      pendingSave=true;
+      $('pause').hidden=true;
     }
-    await new Promise(resolve=>{recorder.onstop=resolve;recorder.stop();});
-    await writes;
-    await api.stop(elapsed);
+    // A failed or partially acknowledged write stays at the same offset until it succeeds.
+    await writeRecordingChunks();
+    const speechWarning=await api.stop(elapsed);
+    if(speechWarning)pcmError=new Error(speechWarning);
+  }catch(error){
+    if(!pendingSave)throw error;
+    $('record').textContent='重试保存';
+    throw new Error('本次录音待保存，请检查可用空间后重试。'+error.message);
   }finally{
-    stream.getTracks().forEach(t=>t.stop());node?.disconnect();await context?.close();node=null;context=null;source=null;
-    recorder=null;busy=false;elapsed=0;$('pause').hidden=true;$('record').textContent='开始录音';await reload();
+    busy=false;
+    render();
   }
-  if(recordError||pcmError)throw recordError||pcmError;
-  notice('会议已保存');
+  recorder=null;pendingSave=false;elapsed=0;
+  $('record').textContent='开始录音';
+  await reload();
+  if(recordError)throw recordError;
+  if(pcmError)throw new Error('录音已保存，部分字幕可能缺失。'+pcmError.message);
+  notice(writeInterrupted?'录音因写入中断，已有录音已保存。':captureWarning||'会议已保存');
   if(state.config.base&&current()?.lines.length)await process('summarize');
+}
+async function drainMicrophone(){
+  source.disconnect();
+  let timeout;
+  try{
+    await new Promise((resolve,reject)=>{
+      flushPCM=resolve;
+      timeout=setTimeout(()=>reject(new Error('尾段语音处理超时。')),3000);
+      if(context.state==='suspended')context.resume().catch(reject);
+      node.port.postMessage('flush');
+    });
+  }finally{
+    clearTimeout(timeout);
+    flushPCM=null;
+    node.port.onmessage=null;
+  }
 }
 let guideMeeting=null, modelPhase='missing', modelDetail='', installingModels=false;
 const missingDetail='首次需下载约 220 MB 模型，用于离线字幕和说话人识别。';

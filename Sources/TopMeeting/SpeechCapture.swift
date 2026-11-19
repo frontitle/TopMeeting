@@ -3,9 +3,11 @@ import Speech
 
 // Audio is always recorded, including quiet and overlapping voices. Energy is used
 // only to end utterances; it never gates or discards input to the recognizer.
-private final class AudioSink: @unchecked Sendable {
+final class AudioSink: @unchecked Sendable {
+    enum BufferError: Error { case copyFailed }
     private let lock = NSLock()
     private var file: AVAudioFile?
+    private var writtenDuration: TimeInterval = 0
     private var receiver: ((AVAudioPCMBuffer) -> Void)?
     func setReceiver(_ receiver: ((AVAudioPCMBuffer) -> Void)?) { lock.lock(); defer { lock.unlock() }; self.receiver = receiver }
     private var request: SFSpeechAudioBufferRecognitionRequest?
@@ -18,7 +20,17 @@ private final class AudioSink: @unchecked Sendable {
     var onAudio: ((Data,Double) -> Void)?
     func configure(file: AVAudioFile?, gain: Float) {
         lock.lock(); defer { lock.unlock() }
-        self.file = file; self.gain = gain; gainControl = RecognitionGain(); pending = []; pendingDuration = 0; lastSpeech = Date(); level = -90
+        self.file = file; writtenDuration = 0; self.gain = gain; gainControl = RecognitionGain(); pending = []; pendingDuration = 0; lastSpeech = Date(); level = -90
+    }
+    func closeRecording() -> TimeInterval {
+        lock.lock(); defer { lock.unlock() }
+        let url = file?.url
+        file = nil; pending = []; pendingDuration = 0
+        // Core Audio can buffer a write that only partially reaches a full disk.
+        if let url, let saved = try? AVAudioFile(forReading:url), saved.processingFormat.sampleRate > 0 {
+            return Double(saved.length) / saved.processingFormat.sampleRate
+        }
+        return writtenDuration
     }
     func snapshot() -> (Double, Date) { lock.lock(); defer { lock.unlock() }; return (level,lastSpeech) }
     @discardableResult func set(_ value: SFSpeechAudioBufferRecognitionRequest?) -> Double {
@@ -30,7 +42,9 @@ private final class AudioSink: @unchecked Sendable {
     }
     func append(_ buffer: AVAudioPCMBuffer) throws {
         lock.lock(); defer { lock.unlock() }
-        try file?.write(from:buffer)
+        guard let file else { return }
+        try file.write(from:buffer)
+        writtenDuration += Double(buffer.frameLength) / buffer.format.sampleRate
         var peak: Float = 0
         if let source = buffer.floatChannelData {
             var mono = [Float](repeating:0,count:Int(buffer.frameLength))
@@ -48,7 +62,7 @@ private final class AudioSink: @unchecked Sendable {
         if level + 20 * log10(Double(max(1,effectiveGain))) > -58 { lastSpeech = Date() }
         guard let copy = AudioSamples.amplified(buffer,gain:effectiveGain) else {
             // Do not hand a reusable tap buffer to asynchronous recognition.
-            throw NSError(domain:"TopMeeting",code:2,userInfo:[NSLocalizedDescriptionKey:"无法复制识别音频缓冲区"])
+            throw BufferError.copyFailed
         }
         if let receiver { receiver(copy) }
         else if let request { request.append(copy) }
@@ -85,11 +99,13 @@ enum UtteranceBoundary {
     private var running = false
     private var pausedAt: Date?
     private var diskFailed = false
+    private var captureID = UUID()
     private(set) var contextualTerms: [String] = []
     func setContextualTerms(_ terms: [String]) { contextualTerms = Array(terms.prefix(100)); continuous?.updateTerms(contextualTerms) }
     var onText: ((UUID, String, Bool, TimeInterval) -> Void)?
     var onLevel: ((Double) -> Void)?
     var onStatus: ((String) -> Void)?
+    var onWriteFailure: (() -> Void)?
     var onAudio: ((Data,Double) -> Void)? { didSet { sink.onAudio = onAudio } }
     var onWords: ((UUID,[SpeechWord]) -> Void)?
     static func supportedLocales() async -> [String] {
@@ -121,11 +137,18 @@ enum UtteranceBoundary {
             beginRecognition()
         }
         let sink = self.sink
+        let captureID = UUID()
+        self.captureID = captureID
         input.installTap(onBus:0,bufferSize:2048,format:format) { [weak self] buffer, _ in
             do { try sink.append(buffer) }
+            catch AudioSink.BufferError.copyFailed { Task { @MainActor in
+                guard let self, self.running, self.captureID == captureID else { return }
+                self.onStatus?("无法复制识别音频缓冲区，原始录音仍在保存。")
+            } }
             catch { Task { @MainActor in
-                guard let self, !self.diskFailed else { return }; self.diskFailed = true
-                self.onStatus?("录音文件写入失败，请停止录音并检查磁盘。")
+                guard let self, self.running, self.captureID == captureID, !self.diskFailed else { return }
+                self.diskFailed = true
+                self.onWriteFailure?()
             } }
         }
         installed = true; engine.prepare()
@@ -199,14 +222,16 @@ enum UtteranceBoundary {
         self.pausedAt = nil
         if continuous == nil { beginRecognition() }
     }
-    func stop() async {
-        finishLatest(); running = false; generation = UUID(); ticker?.invalidate(); ticker = nil; retryAt = nil
+    @discardableResult func stop() async -> TimeInterval {
+        if continuous == nil { finishLatest() }
+        latest = ""; running = false; generation = UUID(); ticker?.invalidate(); ticker = nil; retryAt = nil
         engine.stop(); pausedAt = nil
         if installed { engine.inputNode.removeTap(onBus:0); installed = false }
-        sink.setReceiver(nil)
+        sink.setReceiver(nil); sink.set(nil)
+        let duration = sink.closeRecording()
         if let continuous { await continuous.finish(); self.continuous = nil }
-        sink.set(nil); sink.configure(file:nil,gain:1)
         request?.endAudio(); task?.cancel(); task = nil; request = nil
+        return duration
     }
     private func failure(_ message: String) -> NSError { NSError(domain:"TopMeeting",code:1,userInfo:[NSLocalizedDescriptionKey:message]) }
 }

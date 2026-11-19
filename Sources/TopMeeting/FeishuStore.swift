@@ -87,7 +87,7 @@ extension MeetingStore {
                 }
             }
             if final, feishuUploadAudio, !(recording && selected == id) {
-                for path in meeting.audioSegments ?? meeting.audioPath.map({ [$0] }) ?? [] where !state.attachments.contains(path) {
+                for path in meeting.recordingPaths where !state.attachments.contains(path) {
                     try stillActive(); state.pending = "上传录音：" + URL(fileURLWithPath:path).lastPathComponent; state.pendingPayload = path; try persist()
                     try await client.attach(document:state.id,path:path)
                     state.attachments.append(path); state.pending = nil; state.pendingPayload = nil; try persist()

@@ -5,6 +5,7 @@ const {LocalSpeech}=require('./local-speech.cjs');
 const {listeningPanel}=require('./overlay.cjs');
 const {EncryptedSettings}=require('./encrypted-settings.cjs');
 const {MeetingFile}=require('./meeting-file.cjs');
+const {RecordingFile}=require('./recording-file.cjs');
 const {DocumentStore}=require('./document-store.cjs');
 const {endpoint,summaryInput,readSSE}=require('./domain.cjs');
 const smoke=process.argv.includes('--smoke-test');
@@ -80,7 +81,7 @@ if(primaryInstance) app.whenReady().then(async()=>{
      overlay.update({text:event.text,speaker:event.speaker});
      if(event.type==='final'){
        const m=meeting(active.id);
-       m.lines.push({id:crypto.randomUUID(),text:event.text,recording:active.file,speaker:event.speaker,speakerID:event.speakerID,voices:event.voices,overlap:event.overlap,start:event.start,end:event.end});
+       m.lines.push({id:crypto.randomUUID(),text:event.text,recording:active.file,recordingOffset:active.offset,speaker:event.speaker,speakerID:event.speakerID,voices:event.voices,overlap:event.overlap,start:event.start,end:event.end});
        persist().then(()=>win.webContents.send('meeting-updated',m.id)).catch(error=>win.webContents.send('speech-error',error.message));
      }
    }
@@ -171,7 +172,7 @@ if(primaryInstance) app.whenReady().then(async()=>{
  bind('record-start',async(id,local=true)=>{
    if(installingUpdate||active||inFlight.has(id))throw new Error('会议正在使用中');
    const m=meeting(id),file=crypto.randomUUID()+'.webm';
-   const capturing={id,file,local:local!==false};
+   const capturing={id,file,offset:m.duration,local:local!==false,audio:new RecordingFile(path.join(root,'audio',file))};
    active=capturing;
    try {
      if(capturing.local) await speech.start(m);
@@ -189,12 +190,28 @@ if(primaryInstance) app.whenReady().then(async()=>{
      throw error;
    }
  });
- bind('record-chunk',async(bytes)=>{if(!active)throw new Error('没有正在进行的录音');if(!(bytes instanceof Uint8Array)||bytes.length>20*1024*1024)throw new Error('音频块无效');await fs.appendFile(path.join(root,'audio',active.file),Buffer.from(bytes));});
- bind('record-stop',async(duration)=>{
+ bind('record-chunk',async(bytes,offset)=>{
+   if(!active || active.ending)throw new Error('没有正在进行的录音');
+   await active.audio.write(bytes,offset);
+ });
+ bind('record-stop',async duration=>{
    if(!active)return;
-   const m=meeting(active.id);
-   try{if(active.local && speech.child)await speech.command('finish',{},'finished');}
-   finally{m.duration+=Math.max(0,Math.min(Number(duration)||0,86400));active=null;overlay.hide();await persist();}
+   const capture=active,m=meeting(capture.id);
+   if(!capture.ending){
+     capture.ending=(async()=>{
+       let warning;
+       try{
+         if(capture.local && speech.child)await speech.command('finish',{},'finished');
+       }catch(error){warning=error.message;}
+       m.duration+=Math.max(0,Math.min(Number(duration)||0,86400));
+       overlay.hide();
+       return warning;
+     })();
+   }
+   const warning=await capture.ending;
+   await persist();
+   if(active===capture)active=null;
+   return warning;
  });
  bind('summarize',async id=>{
    const m=meeting(id);
@@ -230,9 +247,9 @@ if(primaryInstance) app.whenReady().then(async()=>{
  });
  const portable={phase:'portable',version:app.getVersion()};
  bind('update-status',()=>updates?updates.status():portable);
- bind('update-action',()=>updates?updates.perform():portable);
+ bind('update-action',action=>updates?updates.perform(action):portable);
  await win.loadFile(path.join(__dirname,'index.html'));
- if(updates && !smoke)setTimeout(()=>updates.status().phase==='idle' && updates.perform(),15000).unref();
+ if(updates && !smoke)setTimeout(()=>updates.status().phase==='idle' && updates.perform('check'),15000).unref();
  if(meetingFile.recovered)startupNotices.push('已从上一份快照恢复会议，原件保存在本机。');
  if(startupNotices.length)win.webContents.send('speech-error',startupNotices.join(' '));
  if(smoke){try{const result=await win.webContents.executeJavaScript(`(async()=>{await window.api.create();const data=await window.api.load();if(data.meetings.length!==1)throw Error('Storage failure');await window.api.edit(data.meetings[0].id,{title:'Synthetic smoke fixture',lines:[{text:'Release check',speaker:'Test'}]});await window.api.trash(data.meetings[0].id,true);await window.api.trash(data.meetings[0].id,false);await window.api.start(data.meetings[0].id,false);await window.api.chunk(new Uint8Array([1,2,3]));await window.api.stop(2);const audio=await window.api.audio(data.meetings[0].id,0);if(audio.length!==3||audio[2]!==3)throw Error('Audio persistence failed');if(!document.querySelector('#record'))throw Error('UI missing');return 'PASS';})()`);await win.webContents.executeJavaScript('reload()');
